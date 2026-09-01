@@ -24,6 +24,9 @@
  * (the manifest cannot import the plugin: its cordis imports would not
  * resolve outside a DSH runtime). Remove this key to restore strict mode.
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 const GUARDRAILS_ALLOW_PUSH = String.raw`^\s*git\s+push\b(?![^\n|;&]*(?:--force\b|-\w*f\b|--delete\b|--mirror\b))\s*[a-zA-Z0-9._/:~^@ \t-]*$`;
 
 export const PLUGINS = [
@@ -35,6 +38,11 @@ export const PLUGINS = [
   { id: 'muse-skill-workshop', name: 'dsh-skill-workshop', host: true },
   { id: 'muse-bridge', name: 'dsh-muse-bridge', host: true },
   { id: 'muse-ui', name: 'dsh-muse-ui', host: false },
+  /* Token usage observability: real host apply (Connection RPC +
+   * sessionPersistence) plus a sidebar client bundle. webOnly because the
+   * `connection` service exists only in the web assembly — headless profiles
+   * must not mount it (a missing inject keeps the entry pending forever). */
+  { id: 'muse-token-stats', name: 'dsh-token-stats', host: true, webOnly: true },
 ];
 
 /** Plugins that run on the host (everything except the browser-only UI).
@@ -43,7 +51,7 @@ export const PLUGINS = [
  *  projection registry is not mounted (e.g. the dsh-headless bundle), so the
  *  bridge is inert there today and automatically covered the day a headless
  *  assembly gains projections. */
-export const HOST_PLUGINS = PLUGINS.filter((p) => p.host);
+export const HOST_PLUGINS = PLUGINS.filter((p) => p.host && p.webOnly !== true);
 
 /** Skills shipped under skills/ (copied to $DSH_HOME/skills/). */
 export const SKILLS = ['muse-orchestrator'];
@@ -85,3 +93,16 @@ export function patchBlock(entries = PLUGINS) {
 
 /** Repo-relative path of the committed browser bundle the UI plugin needs. */
 export const UI_BUNDLE = 'plugins/dsh-muse-ui/lib/client.js';
+
+/** Every plugin that ships a browser bundle, derived from its package.json
+ *  `dsh.client` declaration — check-repo enforces the bundle's presence. */
+export function clientBundlePaths(pluginDirs) {
+  return pluginDirs
+    .filter((dir) => {
+      try {
+        const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
+        return pkg.dsh?.client !== undefined;
+      } catch { return false; }
+    })
+    .map((dir) => join(dir, 'lib', 'client.js'));
+}

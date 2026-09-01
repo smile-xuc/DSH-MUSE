@@ -12,7 +12,8 @@
  *   2. no stray directory under plugins/ that the manifest does not know
  *   3. manifest ids and names are unique; exactly one plugin is browser-only
  *   4. patchBlock() renders every plugin as `id` + `name` insert rows
- *   5. the committed UI browser bundle exists (plugins/dsh-muse-ui/lib/client.js)
+ *   5. every plugin declaring `dsh.client` in its package.json has its
+ *      committed browser bundle at lib/client.js (muse-ui, token-stats)
  *   6. skills/ on disk == manifest SKILLS
  *   7. a manifest plugin `config` carrying a guardrails allowlist pattern is
  *      byte-identical to the plugin's exported ALLOW_GIT_PUSH_SAFE (the
@@ -22,7 +23,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PLUGINS, SKILLS, UI_BUNDLE, patchBlock } from '../bin/manifest.mjs';
+import { PLUGINS, SKILLS, clientBundlePaths, patchBlock } from '../bin/manifest.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const violations = [];
@@ -69,8 +70,10 @@ for (const plugin of PLUGINS) {
 }
 
 /* 5: committed UI bundle ---------------------------------------------------- */
-if (!existsSync(join(ROOT, UI_BUNDLE))) {
-  violations.push(`${UI_BUNDLE} missing — run \`npm ci && npm run build:ui\` and commit the result`);
+for (const bundle of clientBundlePaths(PLUGINS.map((pl) => join(ROOT, 'plugins', pl.name)))) {
+  if (!existsSync(bundle)) {
+    violations.push(`${bundle} missing — a plugin declaring dsh.client must ship its committed browser bundle`);
+  }
 }
 
 /* 6: skills on disk ↔ manifest --------------------------------------------- */

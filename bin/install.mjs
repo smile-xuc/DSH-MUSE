@@ -47,7 +47,7 @@ function log(step, msg) {
 }
 
 /** Legacy entry ids used by pre-repo manual installs (same package names). */
-const LEGACY = [['workunit', 'dsh-workunit'], ['effect-ledger', 'dsh-effect-ledger'], ['evidence', 'dsh-evidence'], ['guardrails', 'dsh-guardrails'], ['eval', 'dsh-eval'], ['skill-workshop', 'dsh-skill-workshop']];
+const LEGACY = [['workunit', 'dsh-workunit'], ['effect-ledger', 'dsh-effect-ledger'], ['evidence', 'dsh-evidence'], ['guardrails', 'dsh-guardrails'], ['eval', 'dsh-eval'], ['skill-workshop', 'dsh-skill-workshop'], ['token-stats', 'dsh-token-stats']];
 
 /** Remove unmanaged legacy entries/dirs from earlier manual installs so the
  *  managed block is the single registration point. */

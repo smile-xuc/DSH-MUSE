@@ -33,6 +33,8 @@ node bin/install.mjs uninstall      # 完整卸载（只删自己创建的东西
 | 自进化 | `dsh-skill-workshop` | Skill 可直接改 | Skill 变更走治理流水线：提案→**直接人类回合审批**→热注册+版本快照→canary→promote→rollback |
 | 编排 | `muse-orchestrator` skill | — | Workflow/Pipeline/Agent Team 选型纪律（多 Agent 仅用于真独立子任务） |
 | 可视化 | `dsh-muse-bridge` + `dsh-muse-ui` | agent 干活方式只在转写里 | Web UI 会话标签栏新增 **Muse 工作台** 视图（轨迹右侧），实时渲染 muse 工作方式（见下） |
+| 可观测性 | `dsh-token-stats` | 用量只能翻会话日志 | Web UI 侧栏（设置上方）常驻**今日/本周 token 统计**，点击弹出按日/按周完整历史；复用 harness 官方 usage 口径（防流式双计），增量缓存扫描 |
+
 
 ## Muse 工作台（可视化面板）
 
@@ -123,8 +125,9 @@ node eval/bin/check-guardrails.mjs   # 无 LLM：护栏分类器 vs 43 例人工
 ## 仓库结构
 
 ```
-plugins/            八个 Muse 插件（独立 npm 包形态，peerDeps 钉住 DSH seam 版本）：
-                    六个控制面 + dsh-muse-bridge（会话投影桥）+ dsh-muse-ui（浏览器端工作台）
+plugins/            九个插件（独立 npm 包形态，peerDeps 钉住 DSH seam 版本）：
+                    六个 Muse 控制面 + dsh-muse-bridge（会话投影桥）+ dsh-muse-ui（浏览器端工作台）
+                    + dsh-token-stats（侧栏 token 统计，仅 web）
 skills/             muse-orchestrator 编排纪律 skill
 bin/manifest.mjs    插件/技能/补丁块清单 —— 单一事实源（install、eval setup、CI 检查共用）
 bin/install.mjs     幂等安装/卸载/状态（含旧手工安装的自动迁移、UI bundle 存在性预警）
