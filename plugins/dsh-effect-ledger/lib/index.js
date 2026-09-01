@@ -222,9 +222,17 @@ class EffectLedger extends Service {
     return { entry, fresh: true };
   }
 
-  /** Record approval for a proposed entry. */
+  /**
+   * Record approval for an entry. Accepts `proposed` (first pass) and also
+   * `approved` / `failed` / `rolled_back`: those are RE-ATTEMPTS of an
+   * operation that is not currently in effect (crashed before executing,
+   * executed with an error, or undone) — retrying them is the normal
+   * failure-recovery flow, and `executeAttempts` already tracks repetition.
+   * `executed` stays excluded: re-approving an executed effect would break
+   * the duplicate guard (guardrails denies that path before reaching here).
+   */
   async approve(idempotencyKey, approval) {
-    return this._transition(idempotencyKey, ['proposed'], (draft) => {
+    return this._transition(idempotencyKey, ['proposed', 'approved', 'failed', 'rolled_back'], (draft) => {
       draft.approval = { who: approval.who, scope: approval.scope, at: Date.now() };
       draft.status = 'approved';
     });

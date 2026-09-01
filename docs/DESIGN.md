@@ -45,14 +45,15 @@ SkillProposal  = Skill 变更提案：diff、评测、审批、版本、灰度�
 ## 2. 插件分层
 
 ```
-~/.dsh/profiles/plugins/
+~/.dsh/profiles/plugins/dsh-muse/
 ├── dsh-workunit/          结构化任务状态核（Service: workunits）
 ├── dsh-effect-ledger/     副作用账本（Service: effectLedger）
 ├── dsh-evidence/          证据注册与供给日志（Service: evidence）
 ├── dsh-guardrails/        四层检查 + 权限组合（依赖 tools 拦截缝）
 ├── dsh-eval/              三层评测 + 指标聚合（Service: eval）
 ├── dsh-skill-workshop/    Skill 治理（proposal 工作流）
-└── MUSE-DESIGN.md         本文档
+├── dsh-muse-bridge/       可观测桥：muse 工具流 → 纯函数会话投影 `muse`（web）
+└── dsh-muse-ui/           Muse 工作台标签页（浏览器端 cordis client 插件；宿主侧为空壳）
 ```
 
 全部注册进 `~/.dsh/profiles/web/cordis.patch.yml`（web profile）与

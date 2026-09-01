@@ -1,7 +1,11 @@
 # DSH-MUSE 自迭代评测体系
 
-对照实验：**eval-vanilla**（原版 headless）vs **eval-muse**（+六个 Muse 插件）。
+对照实验：**eval-vanilla**（原版 headless）vs **eval-muse**（+七个 Muse 宿主插件，清单取自 `bin/manifest.mjs` 单一事实源）。
 两个 profile 共享同一份全局 settings（同一模型、同一凭据），唯一差异是 Muse 层。
+
+> 构成说明：`dsh-muse-ui` 是纯浏览器端插件，不进 headless 基准；`dsh-muse-bridge` 随宿主插件挂载，
+> 但其 `ctx.inject(['sessionProjections'], …)` 在 dsh-headless 装配下不触发（无投影注册表），
+> 当前基准中惰性零开销——未来 headless 挂上投影注册表时它会自动进入计量。
 
 ## 使用
 

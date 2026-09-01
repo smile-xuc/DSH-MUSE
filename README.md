@@ -1,6 +1,6 @@
 # DSH-MUSE
 
-**把 [DeepSeek Harness](https://github.com/deepseek-ai)（DSH）从"会写代码的 Agent"升级为"能可靠交付的研发工具"** —— 受小红书 Muse Agentic 架构（InfoQ/AICon 2026《AI 写代码飞快，为何交付没有变快？》）启发，以**纯插件**形式实现 Harness 控制面：WorkUnit 任务状态、Effect Ledger 副作用台账、Context Evidence 证据链、四位护栏、三层评测、Skill 治理工坊。
+**把 [DeepSeek Harness](https://github.com/deepseek-ai)（DSH）从"会写代码的 Agent"升级为"能可靠交付的研发工具"** —— 受小红书 Muse Agentic 架构（InfoQ/AICon 2026《AI 写代码飞快，为何交付没有变快？》）启发，以**纯插件**形式实现 Harness 控制面：WorkUnit 任务状态、Effect Ledger 副作用台账、Context Evidence 证据链、四位护栏、三层评测、Skill 治理工坊，外加实时可观测（会话投影桥 + Web GUI「Muse 工作台」标签页）。
 
 > 零内核改动：DSH 主线怎么升级都不会与本项目冲突；删掉一个标记块即可完整回滚。
 
@@ -69,10 +69,10 @@ node bin/install.mjs uninstall      # 完整卸载（只删自己创建的东西
 
 | Task | Variant | Verified success | Wall time | Tokens (in+out) | Tool calls | Tool errors | Duplicate side effects |
 |---|---|---|---|---|---|---|---|
-| t01-write-verify | vanilla | ✅ | 91s | 36856 | 2 | 0 | 0 |
-| t01-write-verify | muse | ✅ | 44s | 47230 | 2 | 0 | 0 |
+| t01-write-verify | vanilla | ✅ | 17s | 35274 | 2 | 0 | 0 |
+| t01-write-verify | muse | ✅ | 64s | 62960 | 4 | 0 | 0 |
 | t02-idempotent-retry | vanilla | ✅ | 45s | 36851 | 2 | 0 | 1 |
-| t02-idempotent-retry | muse | ✅ | 38s | 62758 | 3 | 1 | 0 |
+| t02-idempotent-retry | muse | ✅ | 64s | 61359 | 3 | 1 | 0 |
 | t03-bugfix-deliver | vanilla | ✅ | 61s | 63637 | 5 | 0 | 0 |
 | t03-bugfix-deliver | muse | ✅ | 91s | 79830 | 5 | 0 | 0 |
 
@@ -80,11 +80,11 @@ node bin/install.mjs uninstall      # 完整卸载（只删自己创建的东西
 
 | Task | Δ success | Δ tokens | Δ wall | Δ duplicates |
 |---|---|---|---|---|
-| t01-write-verify | 0 | +10374 | -47s | 0 |
-| t02-idempotent-retry | 0 | +25907 | -7s | -1 |
+| t01-write-verify | 0 | +27686 | +47s | 0 |
+| t02-idempotent-retry | 0 | +24508 | +19s | -1 |
 | t03-bugfix-deliver | 0 | +16193 | +30s | 0 |
 
-_Latest batch: 2026-09-01T02:24:30.909Z — raw data in eval/results/, trend in eval/history/._
+_Latest batch: 2026-09-01T07:32:10.842Z — raw data in eval/results/, trend in eval/history/._
 
 <!-- END EVAL RESULTS -->
 
@@ -104,9 +104,13 @@ node eval/bin/evolve.mjs   # 分析历史 → docs/proposals/<date>.md 改进提
 ## 仓库结构
 
 ```
-plugins/            六个 Muse 插件（独立 npm 包形态，peerDeps 钉住 DSH seam 版本）
+plugins/            八个 Muse 插件（独立 npm 包形态，peerDeps 钉住 DSH seam 版本）：
+                    六个控制面 + dsh-muse-bridge（会话投影桥）+ dsh-muse-ui（浏览器端工作台）
 skills/             muse-orchestrator 编排纪律 skill
-bin/install.mjs     幂等安装/卸载/状态（含旧手工安装的自动迁移）
+bin/manifest.mjs    插件/技能/补丁块清单 —— 单一事实源（install、eval setup、CI 检查共用）
+bin/install.mjs     幂等安装/卸载/状态（含旧手工安装的自动迁移、UI bundle 存在性预警）
+build/build-ui.mjs  UI 客户端 bundle 构建（esbuild → cordis 工厂格式，产物随仓库提交）
+build/check-repo.mjs 仓库一致性检查（清单 ↔ 文件系统 ↔ 补丁块）
 eval/               自迭代评测：tasks + runner + compare + evolve + history
 docs/DESIGN.md      设计契约（对象模型/存储域/护栏位/指标口径）
 ```

@@ -21,34 +21,14 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symli
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { MARK_BEGIN, MARK_END, PLUGINS, SKILLS, UI_BUNDLE, patchBlock } from './manifest.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-const PLUGINS = ['dsh-workunit', 'dsh-effect-ledger', 'dsh-evidence', 'dsh-guardrails', 'dsh-eval', 'dsh-skill-workshop', 'dsh-muse-bridge', 'dsh-muse-ui'];
-const SKILLS = ['muse-orchestrator'];
-const MARK_BEGIN = '# >>> dsh-muse (managed — do not edit between markers) >>>';
-const MARK_END = '# <<< dsh-muse <<<';
-
-const PATCH_BLOCK = `${MARK_BEGIN}
-- insert:
-    - id: muse-workunit
-      name: dsh-workunit
-    - id: muse-effect-ledger
-      name: dsh-effect-ledger
-    - id: muse-evidence
-      name: dsh-evidence
-    - id: muse-guardrails
-      name: dsh-guardrails
-    - id: muse-eval
-      name: dsh-eval
-    - id: muse-skill-workshop
-      name: dsh-skill-workshop
-    - id: muse-bridge
-      name: dsh-muse-bridge
-    - id: muse-ui
-      name: dsh-muse-ui
-${MARK_END}
-`;
+/** Plugin package names (directory names under plugins/). */
+const PLUGIN_NAMES = PLUGINS.map((p) => p.name);
+/** The managed patch block, generated from the manifest. */
+const PATCH_BLOCK = patchBlock();
 
 /* ------------------------------------------------------------------ */
 
@@ -109,14 +89,18 @@ function removePatch(text) {
   if (!text.includes(MARK_BEGIN)) return text;
   const re = new RegExp(`\\n?${MARK_BEGIN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?${MARK_END.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n?`);
   const out = text.replace(re, '\n');
-  /* comments only -> restore the shipped `[]` placeholder document */
-  return out.trim().startsWith('#') && out.trim().replace(/^#[^\n]*\n?/gm, '').trim() === '' ? `${out.replace(/\n*$/, '\n')}[]\n` : out;
+  /* A file that held nothing but the managed block (empty or comments-only)
+   * must go back to the shipped `[]` placeholder: the patch loader requires
+   * a top-level YAML array, and an empty document fails to boot the profile. */
+  if (out.replace(/^#[^\n]*\n?/gm, '').trim() !== '') return out;
+  const comments = out.trim();
+  return (comments === '' ? '' : `${comments}\n`) + '[]\n';
 }
 
 function installPlugins(home) {
   const target = join(home, 'profiles', 'plugins', 'dsh-muse');
   mkdirSync(target, { recursive: true });
-  for (const name of PLUGINS) {
+  for (const name of PLUGIN_NAMES) {
     rmSync(join(target, name), { recursive: true, force: true });
     cpSync(join(ROOT, 'plugins', name), join(target, name), { recursive: true });
     log('plugin', `${name} -> ${join(target, name)}`);
@@ -137,7 +121,7 @@ function linkIntoProfile(home, profile) {
   if (!existsSync(profileDir)) throw new Error(`profile '${profile}' not found at ${profileDir}`);
   const nmDir = join(profileDir, 'node_modules');
   mkdirSync(nmDir, { recursive: true });
-  for (const name of PLUGINS) {
+  for (const name of PLUGIN_NAMES) {
     const link = join(nmDir, name);
     rmSync(link, { recursive: true, force: true });
     symlinkSync(join('..', '..', 'plugins', 'dsh-muse', name), link);
@@ -149,7 +133,7 @@ function linkIntoProfile(home, profile) {
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
     pkg.dependencies = pkg.dependencies ?? {};
     let changed = false;
-    for (const name of PLUGINS) {
+    for (const name of PLUGIN_NAMES) {
       const want = 'link:../plugins/dsh-muse/' + name;
       if (pkg.dependencies[name] !== want) { pkg.dependencies[name] = want; changed = true; }
     }
@@ -171,24 +155,40 @@ function uninstall(home, profile) {
   rmSync(join(home, 'profiles', 'plugins', 'dsh-muse'), { recursive: true, force: true });
   for (const name of SKILLS) rmSync(join(home, 'skills', name), { recursive: true, force: true });
   const nmDir = join(home, 'profiles', profile, 'node_modules');
-  for (const name of PLUGINS) rmSync(join(nmDir, name), { recursive: true, force: true });
+  for (const name of PLUGIN_NAMES) rmSync(join(nmDir, name), { recursive: true, force: true });
   const patchPath = join(home, 'profiles', profile, 'cordis.patch.yml');
   if (existsSync(patchPath)) writeFileSync(patchPath, removePatch(readFileSync(patchPath, 'utf8')));
   const pkgPath = join(home, 'profiles', profile, 'package.json');
   if (existsSync(pkgPath)) {
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
-    for (const name of PLUGINS) delete pkg.dependencies?.[name];
+    for (const name of PLUGIN_NAMES) delete pkg.dependencies?.[name];
     writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
   }
   log('uninstall', 'all dsh-muse artifacts removed');
+}
+
+/**
+ * The UI plugin renders only from its committed browser bundle; installing
+ * from a tree where it is missing would register a tab that never loads.
+ * Warn (do not fail) so source checkouts get a clear hint.
+ */
+function checkUiBundle(scope) {
+  if (!existsSync(join(ROOT, UI_BUNDLE))) {
+    log('warn', `${UI_BUNDLE} is missing (${scope}) — run \`npm ci && npm run build:ui\`; the Muse 工作台 tab will not load without it`);
+    return false;
+  }
+  return true;
 }
 
 function status(home, profile) {
   const patchPath = join(home, 'profiles', profile, 'cordis.patch.yml');
   const patched = existsSync(patchPath) && readFileSync(patchPath, 'utf8').includes(MARK_BEGIN);
   const pluginsDir = join(home, 'profiles', 'plugins', 'dsh-muse');
-  const installed = existsSync(pluginsDir) ? readdirSync(pluginsDir) : [];
-  console.log(`profile '${profile}': patch ${patched ? 'ACTIVE' : 'absent'}, plugins installed: ${installed.length ? installed.join(', ') : '(none)'}`);
+  const installed = existsSync(pluginsDir) ? readdirSync(pluginsDir).filter((d) => !d.startsWith('.')) : [];
+  const missing = PLUGIN_NAMES.filter((n) => !installed.includes(n));
+  console.log(`profile '${profile}': patch ${patched ? 'ACTIVE' : 'absent'}, plugins installed: ${installed.length ? installed.join(', ') : '(none)'}${missing.length > 0 ? ` — MISSING: ${missing.join(', ')}` : ''}`);
+  const bundle = join(pluginsDir, 'dsh-muse-ui', 'lib', 'client.js');
+  console.log(`ui client bundle: ${existsSync(bundle) ? 'present' : 'MISSING — run `npm run build:ui` and reinstall'}`);
 }
 
 /* ------------------------------------------------------------------ */
@@ -196,6 +196,7 @@ function status(home, profile) {
 const args = parseArgs(process.argv);
 switch (args.command) {
   case 'install':
+    checkUiBundle('install');
     cleanLegacy(args.home, args.profile);
     installPlugins(args.home);
     installSkills(args.home);

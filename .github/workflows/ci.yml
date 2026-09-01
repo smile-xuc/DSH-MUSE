@@ -12,9 +12,11 @@ jobs:
           node-version: 22
       - name: Syntax-check all plugins and scripts
         run: |
-          for f in plugins/*/lib/index.js bin/*.mjs eval/bin/*.mjs; do
+          for f in plugins/*/lib/index.js plugins/dsh-muse-ui/lib/client.js bin/*.mjs build/*.mjs eval/bin/*.mjs; do
             node --check "$f" || exit 1
           done
+      - name: Repo consistency (manifest ↔ filesystem)
+        run: node build/check-repo.mjs
       - name: Validate eval task definitions
         run: |
           node -e "
@@ -26,3 +28,16 @@ jobs:
           }
           console.log('tasks valid');
           "
+  client-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Rebuild the Muse UI client bundle
+        run: npm run build:ui
+      - name: Committed bundle is fresh (no diff against src)
+        run: git diff --exit-code plugins/dsh-muse-ui/lib/client.js

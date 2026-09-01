@@ -3,10 +3,17 @@
  * eval setup — create the two benchmark profiles under $DSH_HOME/profiles:
  *
  *   eval-vanilla  stock DSH headless (dsh-base + dsh-headless), nothing else
- *   eval-muse     same base + storage trio + the six Muse plugins
+ *   eval-muse     same base + storage trio + the Muse host plugins
  *
  * Both profiles share the user's global ~/.dsh settings (model provider,
  * credentials) so the ONLY difference between the two arms is the Muse layer.
+ *
+ * Muse coverage note: every HOST plugin is mounted (see bin/manifest.mjs).
+ * dsh-muse-ui is browser-only (inert host marker) and stays out of headless;
+ * dsh-muse-bridge mounts but its `ctx.inject(['sessionProjections'], …)`
+ * never fires under the dsh-headless assembly (no projection registry), so it
+ * is inert today and automatically joins the benchmark if a future headless
+ * bundle mounts projections.
  *
  * Prerequisite for eval-muse: `node bin/install.mjs install` must have run
  * (the profile links against the installed plugin copies).
@@ -14,10 +21,11 @@
 import { existsSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { HOST_PLUGINS, insertRows } from '../../bin/manifest.mjs';
 
 const HOME = process.env.DSH_HOME ?? join(homedir(), '.dsh');
 const PROFILES = join(HOME, 'profiles');
-const PLUGINS = ['dsh-workunit', 'dsh-effect-ledger', 'dsh-evidence', 'dsh-guardrails', 'dsh-eval', 'dsh-skill-workshop'];
+const PLUGINS = HOST_PLUGINS.map((p) => p.name);
 
 const BUNDLES = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-headless'];
 
@@ -52,19 +60,7 @@ function writeProfile(name, { muse }) {
       name: '@deepseek-ai/dsh-storage-domain'
       config:
         backend: json
-    - id: muse-workunit
-      name: dsh-workunit
-    - id: muse-effect-ledger
-      name: dsh-effect-ledger
-    - id: muse-evidence
-      name: dsh-evidence
-    - id: muse-guardrails
-      name: dsh-guardrails
-    - id: muse-eval
-      name: dsh-eval
-    - id: muse-skill-workshop
-      name: dsh-skill-workshop
-`);
+${insertRows(HOST_PLUGINS)}`);
   }
   console.log(`[eval:setup] profile '${name}' ready at ${dir}`);
 }

@@ -1,6 +1,6 @@
 {
   "name": "dsh-effect-ledger",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Side-effect ledger for the DeepSeek Harness: every effect carries an idempotency key, its approval scope, the target resource version, the execution result and rollback data — so 'the same operation ran twice' is detectable and recovery is possible.",
   "type": "module",
