@@ -88,6 +88,10 @@ function cleanLegacy(home, profile) {
 
 /** Insert or replace the managed block in a cordis.patch.yml text. */
 function upsertPatch(text) {
+  /* DSH ships profiles with a bare `[]` placeholder as the whole document;
+   * strip it before appending, otherwise `[]` followed by a list is invalid
+   * YAML and dsh refuses to boot the profile. */
+  text = text.replace(/^[ \t]*\[][ \t]*\r?\n?/, '').replace(/\n[ \t]*\[][ \t]*(?=\r?\n|$)/g, '');
   if (text.includes(MARK_BEGIN)) {
     const re = new RegExp(`${MARK_BEGIN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?${MARK_END.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n?`);
     return text.replace(re, PATCH_BLOCK);
@@ -100,7 +104,9 @@ function upsertPatch(text) {
 function removePatch(text) {
   if (!text.includes(MARK_BEGIN)) return text;
   const re = new RegExp(`\\n?${MARK_BEGIN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?${MARK_END.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n?`);
-  return text.replace(re, '\n');
+  const out = text.replace(re, '\n');
+  /* comments only -> restore the shipped `[]` placeholder document */
+  return out.trim().startsWith('#') && out.trim().replace(/^#[^\n]*\n?/gm, '').trim() === '' ? `${out.replace(/\n*$/, '\n')}[]\n` : out;
 }
 
 function installPlugins(home) {
