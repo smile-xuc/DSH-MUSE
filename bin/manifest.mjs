@@ -15,11 +15,22 @@
  * `host: false` marks the browser-only plugin (its host `apply` is inert; it
  * exists so the loader carries the client bundle into the web runtime).
  */
+/**
+ * The guardrails allowlist shipped as the project default: routine,
+ * non-force `git push` is demoted from approval-gated to ledgered-only on
+ * every install (trusted-device automation; force/delete/mirror stay gated).
+ * MUST stay byte-identical to the exported ALLOW_GIT_PUSH_SAFE in
+ * plugins/dsh-guardrails/lib/index.js — build/check-repo.mjs enforces it
+ * (the manifest cannot import the plugin: its cordis imports would not
+ * resolve outside a DSH runtime). Remove this key to restore strict mode.
+ */
+const GUARDRAILS_ALLOW_PUSH = String.raw`^\s*git\s+push\b(?![^\n|;&]*(?:--force\b|-\w*f\b|--delete\b|--mirror\b))\s*[a-zA-Z0-9._/:~^@ \t-]*$`;
+
 export const PLUGINS = [
   { id: 'muse-workunit', name: 'dsh-workunit', host: true },
   { id: 'muse-effect-ledger', name: 'dsh-effect-ledger', host: true },
   { id: 'muse-evidence', name: 'dsh-evidence', host: true },
-  { id: 'muse-guardrails', name: 'dsh-guardrails', host: true },
+  { id: 'muse-guardrails', name: 'dsh-guardrails', host: true, config: { dangerousAllowPatterns: [GUARDRAILS_ALLOW_PUSH] } },
   { id: 'muse-eval', name: 'dsh-eval', host: true },
   { id: 'muse-skill-workshop', name: 'dsh-skill-workshop', host: true },
   { id: 'muse-bridge', name: 'dsh-muse-bridge', host: true },
@@ -41,10 +52,30 @@ export const SKILLS = ['muse-orchestrator'];
 export const MARK_BEGIN = '# >>> dsh-muse (managed — do not edit between markers) >>>';
 export const MARK_END = '# <<< dsh-muse <<<';
 
+/** Single-quote a scalar for YAML (only ' needs doubling; backslashes and
+ *  regex syntax pass through literally — exactly what patterns need). */
+function yamlQuoted(value) {
+  return `'${String(value).replaceAll("'", "''")}'`;
+}
+
 /** YAML insert rows for the given plugin entries (4-space list indent,
- *  matching the profile patch style DSH ships). */
+ *  matching the profile patch style DSH ships). An entry's optional `config`
+ *  object renders as a nested mapping (string-array values supported). */
 export function insertRows(entries = PLUGINS) {
-  return entries.map((p) => `    - id: ${p.id}\n      name: ${p.name}\n`).join('');
+  return entries.map((p) => {
+    let row = `    - id: ${p.id}\n      name: ${p.name}\n`;
+    if (p.config !== undefined) {
+      row += '      config:\n';
+      for (const [key, value] of Object.entries(p.config)) {
+        if (Array.isArray(value)) {
+          row += `        ${key}:\n${value.map((item) => `          - ${yamlQuoted(item)}\n`).join('')}`;
+        } else {
+          row += `        ${key}: ${yamlQuoted(value)}\n`;
+        }
+      }
+    }
+    return row;
+  }).join('');
 }
 
 /** The full managed patch block (markers included), as written by install. */

@@ -17,7 +17,8 @@ import { ensurePeers } from './_peers.mjs';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 ensurePeers();
-const { createClassifier } = await import(pathToFileURL(join(ROOT, 'plugins', 'dsh-guardrails', 'lib', 'index.js')).href);
+const plugin = await import(pathToFileURL(join(ROOT, 'plugins', 'dsh-guardrails', 'lib', 'index.js')).href);
+const { createClassifier } = plugin;
 
 const labeled = JSON.parse(readFileSync(join(ROOT, 'eval', 'guardrails-labeled.json'), 'utf8'));
 const classify = createClassifier({}); // defaults — same as production default config
@@ -56,6 +57,37 @@ if (mismatches.length > 0) {
   for (const m of mismatches) {
     console.log(`  ✗ [expect ${m.expect} / got ${m.actual}] ${m.command}${m.note ? `  (${m.note})` : ''}`);
   }
-  process.exit(1);
 }
-console.log(`\n[check-guardrails] ${labeled.cases.length}/${labeled.cases.length} 用例一致 — 分类行为符合契约`);
+
+/* ---- allowlist semantics: the labeled allowlistCases section runs each
+ *  command through BOTH the default classifier and one with the named preset
+ *  enabled — the allowlist must demote exactly what it promises and nothing
+ *  more (chained commands must stay gated). The preset is resolved from the
+ *  plugin's own exports so the pattern string has a single source of truth. */
+let allowlistBad = 0;
+if (labeled.allowlistCases !== undefined) {
+  const section = labeled.allowlistCases;
+  const preset = plugin[section.preset];
+  if (typeof preset !== 'string') {
+    console.error(`\n[check-guardrails] 插件未导出预设 ${section.preset}`);
+    process.exit(1);
+  }
+  const strictCl = createClassifier({});
+  const laxCl = createClassifier({ dangerousAllowPatterns: [preset] });
+  console.log(`\n# 白名单语义（预设 ${section.preset}）\n`);
+  for (const c of section.cases) {
+    const s = labelOf(strictCl({ name: 'bash', arguments: { command: c.command } }));
+    const l = labelOf(laxCl({ name: 'bash', arguments: { command: c.command } }));
+    const ok = s === c.strict && l === c.allowlisted;
+    if (!ok) {
+      allowlistBad += 1;
+      console.log(`  ✗ [strict ${c.strict}/${s} · allowlisted ${c.allowlisted}/${l}] ${c.command}${c.note ? `  (${c.note})` : ''}`);
+    }
+  }
+  console.log(allowlistBad === 0
+    ? `  ${section.cases.length}/${section.cases.length} 白名单用例符合预期`
+    : `  ${allowlistBad}/${section.cases.length} 白名单用例不符`);
+}
+
+if (mismatches.length > 0 || allowlistBad > 0) process.exit(1);
+console.log(`\n[check-guardrails] ${labeled.cases.length}/${labeled.cases.length} 用例一致 + 白名单 ${labeled.allowlistCases?.cases.length ?? 0} 例 — 分类行为符合契约`);

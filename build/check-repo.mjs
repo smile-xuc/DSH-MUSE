@@ -14,6 +14,10 @@
  *   4. patchBlock() renders every plugin as `id` + `name` insert rows
  *   5. the committed UI browser bundle exists (plugins/dsh-muse-ui/lib/client.js)
  *   6. skills/ on disk == manifest SKILLS
+ *   7. a manifest plugin `config` carrying a guardrails allowlist pattern is
+ *      byte-identical to the plugin's exported ALLOW_GIT_PUSH_SAFE (the
+ *      manifest cannot import the plugin — cordis deps — so the pattern is
+ *      inlined in both places and this check keeps them from drifting)
  */
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -79,6 +83,19 @@ for (const name of SKILLS.filter((s) => !skillDirs.includes(s))) {
 }
 for (const dir of skillDirs.filter((d) => !SKILLS.includes(d))) {
   violations.push(`skills/${dir}/ exists but is not in bin/manifest.mjs SKILLS`);
+}
+
+/* 7: guardrails allowlist pattern — manifest config ≡ plugin export -------- */
+const guardrailsEntry = PLUGINS.find((p) => p.name === 'dsh-guardrails');
+const manifestPatterns = guardrailsEntry?.config?.dangerousAllowPatterns ?? [];
+if (manifestPatterns.length > 0) {
+  const source = readFileSync(join(ROOT, 'plugins', 'dsh-guardrails', 'lib', 'index.js'), 'utf8');
+  const match = /export const ALLOW_GIT_PUSH_SAFE = String\.raw`([^`]*)`/.exec(source);
+  if (match === null) {
+    violations.push('manifest ships a guardrails allowlist but plugins/dsh-guardrails does not export ALLOW_GIT_PUSH_SAFE');
+  } else if (match[1] !== manifestPatterns[0]) {
+    violations.push(`manifest dangerousAllowPatterns[0] ≠ plugin ALLOW_GIT_PUSH_SAFE — keep them byte-identical (anti-laundering semantics live in the pattern)`);
+  }
 }
 
 /* ------------------------------------------------------------------------- */

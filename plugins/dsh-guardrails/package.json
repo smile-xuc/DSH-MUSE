@@ -1,6 +1,6 @@
 {
   "name": "dsh-guardrails",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "description": "Four-position guardrails for the DeepSeek Harness (Muse Harness 控制面): per-turn task-frame injection and budget watch, pre-execution parameter/resource rules, side-effect gating with the effect ledger (approval, idempotency, duplicate guard), and post-delivery verification of declared artifacts.",
   "type": "module",

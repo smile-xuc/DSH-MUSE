@@ -56,18 +56,20 @@ export const name = 'guardrails';
 export const inject = ['tools', 'systemPrompt', 'workunits', 'effectLedger', 'approval'];
 
 /** Bash commands that always require human approval. */
-/* Anchored at a command position (start of string/line, or after a shell
- * separator) so a quoted mention like printf '%s' 'rm -rf x' does not trip
- * the rule, while real invocations (including pipes and &&-chains) do. */
+/* Anchored at a command position: start of string/line, after a shell
+ * separator, or inside command substitution (`$(` / backtick — written \x60
+ * because String.raw keeps a literal backslash before a backtick). The anchor
+ * means a quoted mention like printf '%s' 'rm -rf x' does not trip the rule,
+ * while real invocations (pipes, &&-chains, $(…) evasions) do. */
 export const DEFAULT_DANGEROUS = [
-  String.raw`(?:^|[|;&\n])\s*rm\s+(-\w*\s+)*-?\w*[rf]\w*\b`,  // rm -rf and friends
-  String.raw`(?:^|[|;&\n])\s*git\s+push\b`,
-  String.raw`(?:^|[|;&\n])\s*git\s+reset\s+--hard\b`,
-  String.raw`(?:^|[|;&\n])\s*(npm|pnpm|yarn)\s+publish\b`,
-  String.raw`(?:^|[|;&\n])\s*curl\b[^\n|;&]*-X\s*(POST|PUT|DELETE|PATCH)\b`,
-  String.raw`(?:^|[|;&\n])\s*sudo\b`,
-  String.raw`(?:^|[|;&\n])\s*(shutdown|reboot|halt)\b`,
-  String.raw`(?:^|[|;&\n])\s*kill(all)?\s+-9\b`,
+  String.raw`(?:^|[|;&\n]|\$\(|\x60)\s*rm\s+(-\w*\s+)*-?\w*[rf]\w*\b`,  // rm -rf and friends
+  String.raw`(?:^|[|;&\n]|\$\(|\x60)\s*git\s+push\b`,
+  String.raw`(?:^|[|;&\n]|\$\(|\x60)\s*git\s+reset\s+--hard\b`,
+  String.raw`(?:^|[|;&\n]|\$\(|\x60)\s*(npm|pnpm|yarn)\s+publish\b`,
+  String.raw`(?:^|[|;&\n]|\$\(|\x60)\s*curl\b[^\n|;&]*-X\s*(POST|PUT|DELETE|PATCH)\b`,
+  String.raw`(?:^|[|;&\n]|\$\(|\x60)\s*sudo\b`,
+  String.raw`(?:^|[|;&\n]|\$\(|\x60)\s*(shutdown|reboot|halt)\b`,
+  String.raw`(?:^|[|;&\n]|\$\(|\x60)\s*kill(all)?\s+-9\b`,
   /* Wrapper-mediated destruction: the anchored rules above key on the command
    * position, which wrappers hide (`ls | xargs rm -rf` was a measured false
    * negative — eval/guardrails-labeled.json). Cover the common wrappers. */
@@ -98,12 +100,31 @@ const WRITE_TOOLS = {
   'str_replace_editor': 'path',
 };
 
+/**
+ * Recommended opt-in allowlist preset for trusted devices: a STANDALONE,
+ * non-force `git push` is demoted from dangerous (needs approval) to
+ * mutating (ledgered automatically, no approval) — routine publishing stays
+ * automatable while `--force`/`-f`-combos/`--delete`/`--mirror` remain gated
+ * (note: `--force-with-lease` conservatively stays gated too).
+ *
+ * Anchored to the WHOLE command on purpose: any shell separator (`;`, `&&`,
+ * `|`, newline) or substitution char fails the match, so a chained
+ * `git push origin main; rm -rf x` can NEVER be laundered through the
+ * allowlist — the dangerous tier still sees the `rm -rf`.
+ */
+export const ALLOW_GIT_PUSH_SAFE = String.raw`^\s*git\s+push\b(?![^\n|;&]*(?:--force\b|-\w*f\b|--delete\b|--mirror\b))\s*[a-zA-Z0-9._/:~^@ \t-]*$`;
+
 /** Schemastery config; every key overridable from the loader row. */
 export const Config = z.object({
   /** Extra dangerous-command regexes (merged over the built-in list). */
   extraDangerousPatterns: z.array(z.string()).default([]),
   /** Extra mutating-command regexes (merged over the built-in list). */
   extraMutatingPatterns: z.array(z.string()).default([]),
+  /** Commands matching these patterns skip the dangerous tier (demoted to
+   *  mutating: ledgered, auto-approved, repeat-allowed). Keep each pattern
+   *  anchored to the whole command and free of shell separators, or a chained
+   *  dangerous command will be laundered through it. See ALLOW_GIT_PUSH_SAFE. */
+  dangerousAllowPatterns: z.array(z.string()).default([]),
   /** What to do when approval is required but no answerer exists. */
   askFallback: z.union(['deny', 'auto']).default('deny'),
   /** Ledger file-writing tool calls. */
@@ -134,10 +155,11 @@ export function createClassifier(config = {}) {
   const merged = { ledgerFileWrites: true, ledgerBashMutations: true, ...config };
   const dangerous = [...DEFAULT_DANGEROUS, ...(config.extraDangerousPatterns ?? [])].map((p) => new RegExp(p));
   const mutating = [...DEFAULT_MUTATING, ...(config.extraMutatingPatterns ?? [])].map((p) => new RegExp(p));
-  return (exec) => classify(exec, dangerous, mutating, merged);
+  const allow = (config.dangerousAllowPatterns ?? []).map((p) => new RegExp(p));
+  return (exec) => classify(exec, dangerous, mutating, allow, merged);
 }
 
-function classify(exec, dangerous, mutating, config) {
+function classify(exec, dangerous, mutating, allow, config) {
   const tool = exec.name;
   const args = exec.arguments ?? {};
 
@@ -157,6 +179,22 @@ function classify(exec, dangerous, mutating, config) {
     const command = String(args.command ?? '');
     if (command === '') return undefined;
     if (dangerous.some((re) => re.test(command))) {
+      /* Allowlist demotion (trusted-device automation): an allowlisted
+       * dangerous command becomes mutating — still ledgered every time, but
+       * no approval round-trip, and the duplicate guard must NOT fire on it
+       * (allowRepeat): a re-run like `git push origin main` is a NEW remote
+       * mutation whose semantic args are identical, so dedup-by-args is
+       * meaningless and would block legitimate repeats. */
+      if (allow.some((re) => re.test(command))) {
+        return {
+          action: 'shell.exec',
+          resource: truncate(command, 120),
+          summary: `allowlisted: ${truncate(command, 80)}`,
+          approval: 'auto',
+          rule: 'dangerous-allowed',
+          allowRepeat: true,
+        };
+      }
       return {
         action: 'shell.exec',
         resource: truncate(command, 120),
@@ -257,8 +295,11 @@ export function apply(ctx, config) {
 
     const key = effectKey(exec, effect);
 
-    /* Duplicate guard: an identical effect already executed. */
-    const existing = await ledger.get(key);
+    /* Duplicate guard: an identical effect already executed. Allowlisted
+     * dangerous commands (e.g. routine git push) opt out — their semantic
+     * args are stable across legitimate repeats, so dedup-by-args is
+     * meaningless for them; each execution is still ledgered below. */
+    const existing = effect.allowRepeat === true ? undefined : await ledger.get(key);
     if (existing !== undefined && existing.status === 'executed') {
       return {
         kind: 'deny',
@@ -356,7 +397,7 @@ export function apply(ctx, config) {
       '## Guardrails',
       'Side-effecting tool calls are ledgered automatically with an idempotency key derived from the exact parameters.',
       'An identical repeat is DENIED as a duplicate side effect — after a crash, check the ledger (effect op=list/check) instead of blindly re-running.',
-      'Dangerous operations (destructive shell, pushes, publishes, external mutation) require human approval; when no approval channel exists they are denied.',
+      'Dangerous operations (destructive shell, force-pushes, publishes, external mutation) require human approval; when no approval channel exists they are denied. Commands matching the profile dangerousAllowPatterns allowlist skip the approval round-trip but are still ledgered on every execution.',
       'Completing a WorkUnit whose declared artifacts are missing on disk is blocked.',
     ].join('\n'),
   });

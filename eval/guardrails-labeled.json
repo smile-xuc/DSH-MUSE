@@ -189,6 +189,98 @@
       "command": "curl -XPUT https://api.example.com/doc/1",
       "expect": "dangerous",
       "note": "-X 与方法连写也要命中"
+    },
+    {
+      "command": "echo $(git push)",
+      "expect": "dangerous",
+      "note": "命令替换内的危险命令不得逃逸（锚点已含 $( 与反引号）"
+    },
+    {
+      "command": "echo `sudo whoami`",
+      "expect": "dangerous",
+      "note": "反引号替换同样"
     }
-  ]
+  ],
+  "allowlistCases": {
+    "description": "白名单语义：strict 列为默认（无白名单）预期，allowlisted 列为启用预设后的预期。预设锚定全串，任何分隔符/替换符都会失配——链式命令不得借白名单洗白。",
+    "preset": "ALLOW_GIT_PUSH_SAFE",
+    "cases": [
+      {
+        "command": "git push origin main",
+        "strict": "dangerous",
+        "allowlisted": "mutating"
+      },
+      {
+        "command": "git push",
+        "strict": "dangerous",
+        "allowlisted": "mutating"
+      },
+      {
+        "command": "git push -u origin main",
+        "strict": "dangerous",
+        "allowlisted": "mutating"
+      },
+      {
+        "command": "git push --tags",
+        "strict": "dangerous",
+        "allowlisted": "mutating"
+      },
+      {
+        "command": "git push https://github.com/smile-xuc/DSH-MUSE.git main",
+        "strict": "dangerous",
+        "allowlisted": "mutating"
+      },
+      {
+        "command": "git push --force origin main",
+        "strict": "dangerous",
+        "allowlisted": "dangerous",
+        "note": "强推不入白名单"
+      },
+      {
+        "command": "git push -f",
+        "strict": "dangerous",
+        "allowlisted": "dangerous"
+      },
+      {
+        "command": "git push -uf origin main",
+        "strict": "dangerous",
+        "allowlisted": "dangerous",
+        "note": "组合旗标含 f 也算"
+      },
+      {
+        "command": "git push --delete origin feat",
+        "strict": "dangerous",
+        "allowlisted": "dangerous"
+      },
+      {
+        "command": "git push --mirror",
+        "strict": "dangerous",
+        "allowlisted": "dangerous"
+      },
+      {
+        "command": "git push --force-with-lease",
+        "strict": "dangerous",
+        "allowlisted": "dangerous",
+        "note": "保守：lease 变体仍走审批"
+      },
+      {
+        "command": "git push origin main; rm -rf /tmp/x",
+        "strict": "dangerous",
+        "allowlisted": "dangerous",
+        "note": "反清洗：链式命令整体不享受白名单"
+      },
+      {
+        "command": "git pull && git push",
+        "strict": "dangerous",
+        "allowlisted": "dangerous",
+        "note": "含分隔符即失配，保守"
+      },
+      {
+        "command": "echo $(git push)",
+        "strict": "dangerous",
+        "allowlisted": "dangerous",
+        "note": "命令替换内不算独立 push"
+      }
+    ]
+  }
 }
