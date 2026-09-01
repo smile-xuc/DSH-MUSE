@@ -9,6 +9,7 @@
     "dsh-muse": "bin/install.mjs"
   },
   "scripts": {
+    "build:ui": "node build/build-ui.mjs",
     "install:muse": "node bin/install.mjs install",
     "uninstall": "node bin/install.mjs uninstall",
     "status": "node bin/install.mjs status",
@@ -16,6 +17,9 @@
     "eval:run": "node eval/bin/run.mjs",
     "eval:report": "node eval/bin/compare.mjs",
     "eval:evolve": "node eval/bin/evolve.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.0"
   },
   "engines": {
     "node": ">=20"

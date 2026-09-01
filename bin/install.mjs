@@ -24,7 +24,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-const PLUGINS = ['dsh-workunit', 'dsh-effect-ledger', 'dsh-evidence', 'dsh-guardrails', 'dsh-eval', 'dsh-skill-workshop'];
+const PLUGINS = ['dsh-workunit', 'dsh-effect-ledger', 'dsh-evidence', 'dsh-guardrails', 'dsh-eval', 'dsh-skill-workshop', 'dsh-muse-bridge', 'dsh-muse-ui'];
 const SKILLS = ['muse-orchestrator'];
 const MARK_BEGIN = '# >>> dsh-muse (managed — do not edit between markers) >>>';
 const MARK_END = '# <<< dsh-muse <<<';
@@ -43,6 +43,10 @@ const PATCH_BLOCK = `${MARK_BEGIN}
       name: dsh-eval
     - id: muse-skill-workshop
       name: dsh-skill-workshop
+    - id: muse-bridge
+      name: dsh-muse-bridge
+    - id: muse-ui
+      name: dsh-muse-ui
 ${MARK_END}
 `;
 

@@ -1,0 +1,30 @@
+{
+  "name": "dsh-muse-ui",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Muse 工作台 — a conversation view tab visualizing the Muse working style live: WorkUnit state machine, effect ledger, evidence chain, delivery verification and the muse tool-call feed. Data comes from the 'muse' session projection pushed by dsh-muse-bridge.",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^0.1.1-rc.2"
+  }
+}

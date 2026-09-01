@@ -30,10 +30,32 @@ node bin/install.mjs uninstall      # 完整卸载（只删自己创建的东西
 | 评测 | `dsh-eval` | 无 | 三层评测：结果（verified delivery）、轨迹（重复副作用/未审批副作用/重试）、组件（分工具失败率）；成本口径=每验证任务 token |
 | 自进化 | `dsh-skill-workshop` | Skill 可直接改 | Skill 变更走治理流水线：提案→**直接人类回合审批**→热注册+版本快照→canary→promote→rollback |
 | 编排 | `muse-orchestrator` skill | — | Workflow/Pipeline/Agent Team 选型纪律（多 Agent 仅用于真独立子任务） |
+| 可视化 | `dsh-muse-bridge` + `dsh-muse-ui` | agent 干活方式只在转写里 | Web UI 会话标签栏新增 **Muse 工作台** 视图（轨迹右侧），实时渲染 muse 工作方式（见下） |
+
+## Muse 工作台（可视化面板）
+
+装好后重启 DSH，会话顶部标签栏变为「对话 | 轨迹 | **Muse 工作台**」。新标签页以图形化仪表盘实时展示 agent 的工作方式：
+
+- **统计胶囊条**：Muse 调用 / 写操作 / 已执行 / 护栏拦截 / 失败,彩色图标一目了然
+- **🧭 任务旅程**：里程碑进度图（立项→执行中→核验→已交付）,当前节点呼吸高亮,受阻/待审批琥珀警示、失败转红;步骤画成节点链（五态圆点）;token/失败额度/轮次画成环形仪表
+- **🛡 副作用流水线**：每条写操作带类型图标（✏️写入/📝编辑/⚡命令）+ 三站点进度点（提议→入账→执行）+ 中文状态徽章;护栏自动登记与显式登记分标;重复拦截整行红标 ⛔
+- **📎 证据墙**：盾牌图标区分可信/存疑,hash 指纹,时效徽章（🕒有效/⌛过期）
+- **📦 交付核验**：大号核验印章（✓已核验/？待核验）+ 交付物清单 + 评测指标瓦片（验证成功率/重复副作用率/成本）
+- **📡 实时动态**：时间线 feed（Muse 蓝色 ◎、写操作琥珀 ✎、状态徽章）
+
+数据通路（零内核改动的关键）：`dsh-muse-bridge` 把会话日志里的 muse 工具调用对（workunit/effect/evidence/eval_report/skill_workshop）以及护栏拦截的写类调用，**纯折叠**成一个 `muse` session projection，经 DSH 官方投影推送通道（`session/projection` 帧 + 历史尾部 seed）到达浏览器；`dsh-muse-ui` 是一个标准 cordis 客户端插件（`conversation.view` 槽注册），bundle 经 `/plugins/dsh-muse-ui/client.js` 由 DSH 官方 `client-modules` 机制下发——**不需要 fork DSH、不需要改前端源码**。
+
+历史会话同样可视（打开旧会话即回放折叠）；会话没有 muse 活动时显示引导空态。
+
+### 构建与分发
+
+- `plugins/dsh-muse-ui/lib/client.js` 是**已提交的构建产物**（esbuild 工厂格式，external 仅用浏览器模块表基线），clone 后无需构建即可安装。
+- 仅在修改 `plugins/dsh-muse-ui/src/` 后需要重建：`npm install && npm run build:ui`（devDependency 仅 esbuild）。
+- 兼容性注记：client bundle 与 DSH `0.1.1-rc.x` 的浏览器模块表 API 绑定；DSH 大版本升级后若标签页消失/报错，先跑 `npm run build:ui` 重建，仍不行再对照 `conversation.view` 槽契约调整 `src/client.jsx`。
 
 ## 兼容性
 
-- **DSH 版本**：在 `0.1.1-rc.2` 上开发并实测通过。依赖的公共 seam：`@deepseek-ai/cordis`（Service/inject/effect）、`dsh-storage-domain`、`dsh-tools`（defineTool + tools/pre-execute、tools/result、tools/post-execute 瀑布）、`systemPrompt`、`approval`、`skills`、`sessionPersistence`。主线升级后跑一遍 `eval`（见下）即可验证兼容。
+- **DSH 版本**：在 `0.1.1-rc.2` 上开发并实测通过。依赖的公共 seam：`@deepseek-ai/cordis`（Service/inject/effect）、`dsh-storage-domain`、`dsh-tools`（defineTool + tools/pre-execute、tools/result、tools/post-execute 瀑布）、`systemPrompt`、`approval`、`skills`、`sessionPersistence`、`sessionProjections`（bridge 投影）、`client-modules` 的 `dsh.client` 双面包声明（UI 插件）。主线升级后跑一遍 `eval`（见下）即可验证兼容。
 - **零冲突保证**：不修改/不重打包 DSH 任何文件；全部通过 profile 的 `cordis.patch.yml` 标记块挂载，`uninstall` 精确移除。
 - **会话安全**：不向会话追加自定义事件类型（持久层会拒读未知类型）；审计走独立存储域（`~/.dsh/storages/{workunit,effects,evidence,eval,workshop}.json`）+ 转写自带 tool/call 对。
 - **环境**：Node ≥ 20（开发环境 22.x），macOS/Linux。
