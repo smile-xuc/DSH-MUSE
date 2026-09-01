@@ -199,6 +199,26 @@
       "command": "echo `sudo whoami`",
       "expect": "dangerous",
       "note": "反引号替换同样"
+    },
+    {
+      "command": "git -C /tmp/repo push",
+      "expect": "dangerous",
+      "note": "git 全局选项（-C）不得隐藏子命令"
+    },
+    {
+      "command": "git -c core.x=y push origin main",
+      "expect": "dangerous",
+      "note": "-c 配置选项同理"
+    },
+    {
+      "command": "git -C /tmp/repo reset --hard",
+      "expect": "dangerous",
+      "note": "-C + reset --hard"
+    },
+    {
+      "command": "git -C /tmp/repo commit -m x",
+      "expect": "mutating",
+      "note": "-C + commit 入账"
     }
   ],
   "allowlistCases": {
@@ -280,6 +300,18 @@
         "strict": "dangerous",
         "allowlisted": "dangerous",
         "note": "命令替换内不算独立 push"
+      },
+      {
+        "command": "git -C /tmp/repo push origin main",
+        "strict": "dangerous",
+        "allowlisted": "mutating",
+        "note": "-C 全局选项下的安全 push 同样降级"
+      },
+      {
+        "command": "git -C /tmp/repo push --force",
+        "strict": "dangerous",
+        "allowlisted": "dangerous",
+        "note": "-C + 强推保持门控"
       }
     ]
   }

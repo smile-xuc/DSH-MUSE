@@ -63,8 +63,8 @@ export const inject = ['tools', 'systemPrompt', 'workunits', 'effectLedger', 'ap
  * while real invocations (pipes, &&-chains, $(…) evasions) do. */
 export const DEFAULT_DANGEROUS = [
   String.raw`(?:^|[|;&\n]|\$\(|\x60)\s*rm\s+(-\w*\s+)*-?\w*[rf]\w*\b`,  // rm -rf and friends
-  String.raw`(?:^|[|;&\n]|\$\(|\x60)\s*git\s+push\b`,
-  String.raw`(?:^|[|;&\n]|\$\(|\x60)\s*git\s+reset\s+--hard\b`,
+  String.raw`(?:^|[|;&\n]|\$\(|\x60)\s*git\s+(?:-\w+\s+\S+\s+|-\w+\s+)*push\b`,
+  String.raw`(?:^|[|;&\n]|\$\(|\x60)\s*git\s+(?:-\w+\s+\S+\s+|-\w+\s+)*reset\s+--hard\b`,
   String.raw`(?:^|[|;&\n]|\$\(|\x60)\s*(npm|pnpm|yarn)\s+publish\b`,
   String.raw`(?:^|[|;&\n]|\$\(|\x60)\s*curl\b[^\n|;&]*-X\s*(POST|PUT|DELETE|PATCH)\b`,
   String.raw`(?:^|[|;&\n]|\$\(|\x60)\s*sudo\b`,
@@ -87,7 +87,7 @@ export const DEFAULT_MUTATING = [
   String.raw`>[>]?\s*[^\s|&]`,                          // redirection writes
   String.raw`\b(mv|cp|mkdir|touch|ln|chmod|chown)\b`,
   String.raw`\bsed\s+(-\w+\s+)*-i\b`,
-  String.raw`\bgit\s+(add|commit|checkout|switch|merge|rebase|restore|stash|apply)\b`,
+  String.raw`\bgit\s+(?:-\w+\s+\S+\s+|-\w+\s+)*(add|commit|checkout|switch|merge|rebase|restore|stash|apply)\b`,
   String.raw`\b(npm|pnpm|yarn|bun)\s+(install|add|remove|uninstall|update)\b`,
   String.raw`\brm\s+\S`,                              // any deletion is ledgered (rm -rf still escalates via the dangerous tier first)
 ];
@@ -112,7 +112,7 @@ const WRITE_TOOLS = {
  * `git push origin main; rm -rf x` can NEVER be laundered through the
  * allowlist — the dangerous tier still sees the `rm -rf`.
  */
-export const ALLOW_GIT_PUSH_SAFE = String.raw`^\s*git\s+push\b(?![^\n|;&]*(?:--force\b|-\w*f\b|--delete\b|--mirror\b))\s*[a-zA-Z0-9._/:~^@ \t-]*$`;
+export const ALLOW_GIT_PUSH_SAFE = String.raw`^\s*git\s+(?:-\w+\s+\S+\s+|-\w+\s+)*push\b(?![^\n|;&]*(?:--force\b|-\w*f\b|--delete\b|--mirror\b))\s*[a-zA-Z0-9._/:~^@ \t-]*$`;
 
 /** Schemastery config; every key overridable from the loader row. */
 export const Config = z.object({

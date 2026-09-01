@@ -27,7 +27,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const GUARDRAILS_ALLOW_PUSH = String.raw`^\s*git\s+push\b(?![^\n|;&]*(?:--force\b|-\w*f\b|--delete\b|--mirror\b))\s*[a-zA-Z0-9._/:~^@ \t-]*$`;
+const GUARDRAILS_ALLOW_PUSH = String.raw`^\s*git\s+(?:-\w+\s+\S+\s+|-\w+\s+)*push\b(?![^\n|;&]*(?:--force\b|-\w*f\b|--delete\b|--mirror\b))\s*[a-zA-Z0-9._/:~^@ \t-]*$`;
 
 export const PLUGINS = [
   { id: 'muse-workunit', name: 'dsh-workunit', host: true },
