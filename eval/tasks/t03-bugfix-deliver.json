@@ -1,0 +1,8 @@
+{
+  "id": "t03-bugfix-deliver",
+  "description": "Small real bugfix — reproduce failing test, fix, re-run green.",
+  "fixture": "t03",
+  "prompt": "{{WORKDIR}} 里有一个小项目：sum.js 有 bug，test.js 是它的测试（用 node test.js 运行）。请先运行测试复现失败，分析原因，修复 sum.js（不要改测试），再运行测试直到通过，最后报告修复内容。",
+  "verify": { "type": "command", "run": "node test.js" },
+  "timeoutSec": 420
+}

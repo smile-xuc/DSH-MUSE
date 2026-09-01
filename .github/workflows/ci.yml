@@ -1,0 +1,28 @@
+name: ci
+on:
+  push:
+  pull_request:
+jobs:
+  structural:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax-check all plugins and scripts
+        run: |
+          for f in plugins/*/lib/index.js bin/*.mjs eval/bin/*.mjs; do
+            node --check "$f" || exit 1
+          done
+      - name: Validate eval task definitions
+        run: |
+          node -e "
+          const fs = require('node:fs');
+          for (const f of fs.readdirSync('eval/tasks').filter((f) => f.endsWith('.json'))) {
+            const t = JSON.parse(fs.readFileSync('eval/tasks/' + f, 'utf8'));
+            if (!t.id || !t.prompt || !t.verify?.type) throw new Error(f + ': missing id/prompt/verify');
+            if (t.fixture && !fs.existsSync('eval/fixtures/' + t.fixture)) throw new Error(f + ': fixture missing');
+          }
+          console.log('tasks valid');
+          "

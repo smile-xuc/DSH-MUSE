@@ -1,0 +1,19 @@
+{
+  "name": "dsh-workunit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Structured business-task state (WorkUnit) for the DeepSeek Harness: durable, revision-guarded, checkpoint/resumable task records that sit beside the session transcript — transcript is audit, WorkUnit is state.",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-storage-domain": "^0.1.1-rc.2",
+    "@deepseek-ai/dsh-tools": "^0.1.1-rc.2",
+    "zod": "^4.5.1"
+  }
+}

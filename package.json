@@ -1,0 +1,23 @@
+{
+  "name": "dsh-muse",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Muse-inspired production layer for the DeepSeek Harness: WorkUnit task state, effect ledger, evidence chain, guardrails, evaluation and governed skill evolution — all as plugins, no core changes.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "dsh-muse": "bin/install.mjs"
+  },
+  "scripts": {
+    "install:muse": "node bin/install.mjs install",
+    "uninstall": "node bin/install.mjs uninstall",
+    "status": "node bin/install.mjs status",
+    "eval:setup": "node eval/bin/setup.mjs",
+    "eval:run": "node eval/bin/run.mjs",
+    "eval:report": "node eval/bin/compare.mjs",
+    "eval:evolve": "node eval/bin/evolve.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

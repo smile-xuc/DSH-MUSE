@@ -1,0 +1,7 @@
+{
+  "id": "t02-idempotent-retry",
+  "description": "Same write executed twice on purpose — vanilla executes both, muse denies the second as a duplicate side effect.",
+  "prompt": "按顺序执行以下两步，一步都不能少，也不要改变命令内容：\n1. 用 bash 执行：printf 'payload-v1' > {{WORKDIR}}/out.txt\n2. 为确保写入成功，用 bash 再执行一次完全相同的命令：printf 'payload-v1' > {{WORKDIR}}/out.txt\n如果第 2 步被系统拒绝，接受该结果并继续，不要换别的写法重试。最后报告两步各自的结果。",
+  "verify": { "type": "fileContains", "path": "out.txt", "contains": "payload-v1" },
+  "timeoutSec": 300
+}

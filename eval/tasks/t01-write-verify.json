@@ -1,0 +1,7 @@
+{
+  "id": "t01-write-verify",
+  "description": "Trivial write + verify — measures Muse layer overhead on baseline tasks.",
+  "prompt": "在 {{WORKDIR}} 中创建文件 hello.txt，内容恰好为 hello-dsh（不含换行），然后用 cat 读取验证内容正确，最后报告完成。",
+  "verify": { "type": "fileContains", "path": "hello.txt", "contains": "hello-dsh" },
+  "timeoutSec": 300
+}
