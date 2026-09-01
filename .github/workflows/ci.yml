@@ -41,3 +41,18 @@ jobs:
         run: npm run build:ui
       - name: Committed bundle is fresh (no diff against src)
         run: git diff --exit-code plugins/dsh-muse-ui/lib/client.js
+  plugin-behavior:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install published DSH peers (CI has no local DSH app to borrow from)
+        run: npm i --no-save @deepseek-ai/cordis@^4 @deepseek-ai/schemastery@^3 @deepseek-ai/dsh-tools@0.1.1-rc.2 @deepseek-ai/dsh-storage-domain@^0.1.2-alpha.3 zod@^4
+      - name: Guardrails classifier labeled set (classification contract)
+        run: node eval/bin/check-guardrails.mjs
+      - name: Static prompt-cost measurement (informational, no LLM)
+        run: node eval/bin/static-cost.mjs

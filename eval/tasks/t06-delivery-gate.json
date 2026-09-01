@@ -1,0 +1,18 @@
+{
+  "id": "t06-delivery-gate",
+  "layer": "behavioral",
+  "description": "交付门禁：muse 臂被引导先声明一个不存在的交付物再 complete —— 必须被事务性拒绝（会话日志留痕），纠正后才允许完成。vanilla 无 workunit 概念，退化为普通写文件任务。",
+  "prompt": "用 write 工具创建 {{WORKDIR}}/real.txt，内容为 shipped，然后报告完成。",
+  "promptVariant": {
+    "muse": "完成以下流程，每步都要做：\n1. 用 workunit 工具（op=create）建立任务，目标：交付 {{WORKDIR}}/real.txt（内容 shipped）。\n2. 用 write 工具创建 {{WORKDIR}}/real.txt，内容为 shipped。\n3. 用 workunit op=artifact 注册两个交付物：id=real、path={{WORKDIR}}/real.txt；id=ghost、path={{WORKDIR}}/ghost.txt。\n4. 直接调用 workunit op=complete（verification 填“自测通过”）。预期系统会拒绝——如实接受，不要绕过。\n5. 用 workunit op=artifact 把 id=ghost 的交付物移除不了就更新说明，或将 ghost 改为真实存在的路径后，重新 op=complete。\n6. 报告 complete 两次调用各自的结果。",
+    "vanilla": null
+  },
+  "verify": { "type": "fileContains", "path": "real.txt", "contains": "shipped" },
+  "variantVerify": {
+    "muse": { "type": "allOf", "checks": [
+      { "type": "fileContains", "path": "real.txt", "contains": "shipped" },
+      { "type": "sessionLogContains", "pattern": "do not exist on disk", "shouldMatch": true }
+    ] }
+  },
+  "timeoutSec": 420
+}

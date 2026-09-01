@@ -1,0 +1,194 @@
+{
+  "description": "dsh-guardrails 命令分类器的人工标注集。expect: dangerous=必须走人工审批 / mutating=自动台账 / readonly=放行。陷阱用例检验锚定语义（引号/注释内的危险字样不得升级为 dangerous；&& 链与 xargs/find -exec/sh -c 包装后的危险命令不得漏报）。改动分类正则可，但必须同步更新本文件并说明理由——这就是分类行为的契约。",
+  "knownLimitations": [
+    "heredoc 体内每行会被当作命令位：git commit -m \"$(cat <<'EOF'\nrm -rf x\nEOF)\" 里的消息文本若以 rm -rf 起行会误报 dangerous。根因是没有 shell 解析器，锚定无法区分命令与数据；方向是保守（要求审批而非放行），可接受，暂不修。"
+  ],
+  "cases": [
+    {
+      "command": "ls -la",
+      "expect": "readonly"
+    },
+    {
+      "command": "cat README.md",
+      "expect": "readonly"
+    },
+    {
+      "command": "git status",
+      "expect": "readonly"
+    },
+    {
+      "command": "git log --oneline -10",
+      "expect": "readonly"
+    },
+    {
+      "command": "node test.js",
+      "expect": "readonly",
+      "note": "任意脚本执行在分类契约里视为只读（沙箱是 DSH 的责任）"
+    },
+    {
+      "command": "sleep 8",
+      "expect": "readonly"
+    },
+    {
+      "command": "curl https://example.com/api",
+      "expect": "readonly",
+      "note": "GET 只读"
+    },
+    {
+      "command": "printf '%s' 'rm -rf /'",
+      "expect": "mutating",
+      "note": "陷阱：引号内字样不得升级为 dangerous（锚定层豁免），但 mutating 层刻意不锚定——保守入账是设计内的可接受误报"
+    },
+    {
+      "command": "echo 'sudo reboot' > note.txt",
+      "expect": "mutating",
+      "note": "陷阱：有重定向写入所以是 mutating，但引号内 sudo 不得升级为 dangerous"
+    },
+    {
+      "command": "grep -rn 'git push' src/",
+      "expect": "readonly",
+      "note": "陷阱：搜索文本里的 git push"
+    },
+    {
+      "command": "bash -c 'echo hello'",
+      "expect": "readonly",
+      "note": "sh -c 包装但内核安全"
+    },
+    {
+      "command": "rm old-notes.txt",
+      "expect": "mutating",
+      "note": "裸 rm 入账但不升级审批（无 -r/-f 递归强删标志）"
+    },
+    {
+      "command": "echo hello > out.txt",
+      "expect": "mutating"
+    },
+    {
+      "command": "mkdir -p a/b/c",
+      "expect": "mutating"
+    },
+    {
+      "command": "touch .gitignore",
+      "expect": "mutating"
+    },
+    {
+      "command": "cp -r src/ backup/",
+      "expect": "mutating"
+    },
+    {
+      "command": "mv old.js new.js",
+      "expect": "mutating"
+    },
+    {
+      "command": "chmod +x run.sh",
+      "expect": "mutating"
+    },
+    {
+      "command": "ln -s target link",
+      "expect": "mutating"
+    },
+    {
+      "command": "sed -i '' 's/foo/bar/' file.js",
+      "expect": "mutating"
+    },
+    {
+      "command": "sed -n '1,5p' file.js",
+      "expect": "readonly",
+      "note": "sed 无 -i 是只读"
+    },
+    {
+      "command": "git add .",
+      "expect": "mutating"
+    },
+    {
+      "command": "git commit -m 'fix'",
+      "expect": "mutating"
+    },
+    {
+      "command": "git checkout -b feat/x",
+      "expect": "mutating"
+    },
+    {
+      "command": "npm install lodash",
+      "expect": "mutating"
+    },
+    {
+      "command": "pnpm add -D esbuild",
+      "expect": "mutating"
+    },
+    {
+      "command": "rm -rf /tmp/scratch",
+      "expect": "dangerous"
+    },
+    {
+      "command": "rm -f node_modules/.cache/x",
+      "expect": "dangerous"
+    },
+    {
+      "command": "true && rm -rf build",
+      "expect": "dangerous",
+      "note": "&& 链后的危险命令必须命中"
+    },
+    {
+      "command": "ls | xargs rm -rf",
+      "expect": "dangerous",
+      "note": "xargs 包装绕过（标注集实测抓出的漏报）"
+    },
+    {
+      "command": "printf 'a\\nb\\n' | xargs rm -f",
+      "expect": "dangerous",
+      "note": "xargs 包装 rm -f"
+    },
+    {
+      "command": "find . -name '*.log' -exec rm -f {} +",
+      "expect": "dangerous",
+      "note": "find -exec 包装绕过"
+    },
+    {
+      "command": "sh -c 'rm -rf /tmp/x'",
+      "expect": "dangerous",
+      "note": "sh -c 子壳包装绕过"
+    },
+    {
+      "command": "git push origin main",
+      "expect": "dangerous"
+    },
+    {
+      "command": "git reset --hard HEAD~1",
+      "expect": "dangerous"
+    },
+    {
+      "command": "npm publish",
+      "expect": "dangerous"
+    },
+    {
+      "command": "yarn publish --access public",
+      "expect": "dangerous"
+    },
+    {
+      "command": "sudo apt-get update",
+      "expect": "dangerous"
+    },
+    {
+      "command": "shutdown -h now",
+      "expect": "dangerous"
+    },
+    {
+      "command": "kill -9 4242",
+      "expect": "dangerous"
+    },
+    {
+      "command": "killall -9 node",
+      "expect": "dangerous"
+    },
+    {
+      "command": "curl -X POST https://api.example.com/deploy -d '{}'",
+      "expect": "dangerous"
+    },
+    {
+      "command": "curl -XPUT https://api.example.com/doc/1",
+      "expect": "dangerous",
+      "note": "-X 与方法连写也要命中"
+    }
+  ]
+}

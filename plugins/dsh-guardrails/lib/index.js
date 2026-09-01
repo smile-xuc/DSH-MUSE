@@ -59,7 +59,7 @@ export const inject = ['tools', 'systemPrompt', 'workunits', 'effectLedger', 'ap
 /* Anchored at a command position (start of string/line, or after a shell
  * separator) so a quoted mention like printf '%s' 'rm -rf x' does not trip
  * the rule, while real invocations (including pipes and &&-chains) do. */
-const DEFAULT_DANGEROUS = [
+export const DEFAULT_DANGEROUS = [
   String.raw`(?:^|[|;&\n])\s*rm\s+(-\w*\s+)*-?\w*[rf]\w*\b`,  // rm -rf and friends
   String.raw`(?:^|[|;&\n])\s*git\s+push\b`,
   String.raw`(?:^|[|;&\n])\s*git\s+reset\s+--hard\b`,
@@ -68,15 +68,26 @@ const DEFAULT_DANGEROUS = [
   String.raw`(?:^|[|;&\n])\s*sudo\b`,
   String.raw`(?:^|[|;&\n])\s*(shutdown|reboot|halt)\b`,
   String.raw`(?:^|[|;&\n])\s*kill(all)?\s+-9\b`,
+  /* Wrapper-mediated destruction: the anchored rules above key on the command
+   * position, which wrappers hide (`ls | xargs rm -rf` was a measured false
+   * negative — eval/guardrails-labeled.json). Cover the common wrappers. */
+  String.raw`\b(xargs|parallel)\b[^\n|;&]*\brm\s+(-\w*\s+)*-?\w*[rf]\w*\b`,
+  String.raw`\bfind\b[^\n|;&]*-exec\s+rm\s+(-\w*\s+)*-?\w*[rf]\w*\b`,
+  String.raw`\b(?:ba|z|c|k|fi)?sh\s+-c\s+['"]?[^\n'"]*(?:rm\s+(-\w*\s+)*-?\w*[rf]\w*\b|git\s+push\b|git\s+reset\s+--hard\b|sudo\b)`,
 ];
 
-/** Bash commands that mutate state and are ledgered with auto-approval. */
-const DEFAULT_MUTATING = [
+/** Bash commands that mutate state and are ledgered with auto-approval.
+ *  These patterns are intentionally NOT anchored to a command position:
+ *  auto-ledgering is cheap, so the mutating tier accepts quoted-text false
+ *  positives (echo "mv a b" gets ledgered) in exchange for never missing a
+ *  real mutation. Only the dangerous tier (approval) is anchor-strict. */
+export const DEFAULT_MUTATING = [
   String.raw`>[>]?\s*[^\s|&]`,                          // redirection writes
   String.raw`\b(mv|cp|mkdir|touch|ln|chmod|chown)\b`,
   String.raw`\bsed\s+(-\w+\s+)*-i\b`,
   String.raw`\bgit\s+(add|commit|checkout|switch|merge|rebase|restore|stash|apply)\b`,
   String.raw`\b(npm|pnpm|yarn|bun)\s+(install|add|remove|uninstall|update)\b`,
+  String.raw`\brm\s+\S`,                              // any deletion is ledgered (rm -rf still escalates via the dangerous tier first)
 ];
 
 /** File-writing tool names and where their target path lives in arguments. */
@@ -113,6 +124,19 @@ export const Config = z.object({
  * Classify one tool execution. Returns the effect descriptor or undefined
  * for read-only/internal calls.
  */
+/**
+ * Build a single-argument classifier from a config (defaults applied).
+ * Exported for the labeled-set regression test (eval/bin/check-guardrails.mjs)
+ * AND used by apply() below — one classifier, one truth, so the labeled set
+ * measures exactly what runs in production.
+ */
+export function createClassifier(config = {}) {
+  const merged = { ledgerFileWrites: true, ledgerBashMutations: true, ...config };
+  const dangerous = [...DEFAULT_DANGEROUS, ...(config.extraDangerousPatterns ?? [])].map((p) => new RegExp(p));
+  const mutating = [...DEFAULT_MUTATING, ...(config.extraMutatingPatterns ?? [])].map((p) => new RegExp(p));
+  return (exec) => classify(exec, dangerous, mutating, merged);
+}
+
 function classify(exec, dangerous, mutating, config) {
   const tool = exec.name;
   const args = exec.arguments ?? {};
@@ -193,8 +217,7 @@ function effectKey(exec, effect) {
 /* ------------------------------------------------------------------------ */
 
 export function apply(ctx, config) {
-  const dangerous = [...DEFAULT_DANGEROUS, ...config.extraDangerousPatterns].map((p) => new RegExp(p));
-  const mutating = [...DEFAULT_MUTATING, ...config.extraMutatingPatterns].map((p) => new RegExp(p));
+  const classifyExec = createClassifier(config);
 
   /* ---- Position 1: the live task frame in every model step -------------- */
   if (config.taskFrame) {
@@ -226,7 +249,7 @@ export function apply(ctx, config) {
 
   /* ---- Positions 2+3: pre-execution rules and the side-effect gate ------ */
   ctx.on('tools/pre-execute', async (exec, next) => {
-    const effect = classify(exec, dangerous, mutating, config);
+    const effect = classifyExec(exec);
     if (effect === undefined) return next();
     const ledger = ctx.effectLedger;
     const sessionId = exec.agent?.session.id;
@@ -291,7 +314,7 @@ export function apply(ctx, config) {
   ctx.on('tools/result', (exec, result) => {
     void (async () => {
       try {
-        const effect = classify(exec, dangerous, mutating, config);
+        const effect = classifyExec(exec);
         if (effect === undefined) return;
         const ledger = ctx.effectLedger;
         if (ledger === undefined) return;

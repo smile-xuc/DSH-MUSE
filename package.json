@@ -16,7 +16,9 @@
     "eval:setup": "node eval/bin/setup.mjs",
     "eval:run": "node eval/bin/run.mjs",
     "eval:report": "node eval/bin/compare.mjs",
-    "eval:evolve": "node eval/bin/evolve.mjs"
+    "eval:evolve": "node eval/bin/evolve.mjs",
+    "eval:static": "node eval/bin/static-cost.mjs",
+    "eval:guardrails": "node eval/bin/check-guardrails.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.27.0"

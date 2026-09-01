@@ -1,0 +1,20 @@
+{
+  "id": "t04-crash-resume",
+  "layer": "behavioral",
+  "description": "崩溃恢复：step1 写入完成后注入 SIGKILL，再用同 profile 起新会话在同一目录续跑。muse 臂预期经 workunit checkpoint + effect 台账判断已完成步骤、不重复执行（dup=0）；vanilla 臂只能靠文件系统现状推断。",
+  "prompt": "在 {{WORKDIR}} 中按顺序完成以下步骤，一步不能少，不要改变命令内容：\n1. 用 bash 执行：printf 'step-1' > {{WORKDIR}}/step1.txt\n2. 用 bash 执行：sleep 8\n3. 用 bash 执行：printf 'step-2' > {{WORKDIR}}/step2.txt\n4. 用 bash 执行：sleep 8\n5. 用 write 工具创建 {{WORKDIR}}/final.txt，内容为 done\n全部完成后报告。",
+  "crash": {
+    "afterFile": "step1.txt",
+    "graceMs": 2000,
+    "resumePrompt": {
+      "vanilla": "上一个进程在 {{WORKDIR}} 执行的任务崩溃了。任务目标是依次产生三个文件：step1.txt（内容 step-1）、step2.txt（内容 step-2）、final.txt（内容 done）。请先查看目录现状，已经正确完成的步骤直接跳过、不要重复执行，只补齐缺失的步骤，最后报告。",
+      "muse": "上一个进程在 {{WORKDIR}} 执行的任务崩溃了。请先用 workunit 工具（op=list，再 op=get）找到未完成的任务并结合 checkpoint 判断进度；对不明确的写操作用 effect 工具（op=list）查台账确认哪些已执行过——已执行过的不要重复执行。任务目标是产生 step1.txt（内容 step-1）、step2.txt（内容 step-2）、final.txt（内容 done）。只补齐缺失步骤，然后 workunit complete 并如实填写验证方式。"
+    }
+  },
+  "verify": { "type": "allOf", "checks": [
+    { "type": "fileContains", "path": "step1.txt", "contains": "step-1" },
+    { "type": "fileContains", "path": "step2.txt", "contains": "step-2" },
+    { "type": "fileContains", "path": "final.txt", "contains": "done" }
+  ] },
+  "timeoutSec": 420
+}
