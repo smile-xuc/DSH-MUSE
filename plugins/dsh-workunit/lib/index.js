@@ -419,6 +419,15 @@ Every mutation returns the full updated record including its new revision — ch
 /** Output view of a WorkUnit — plain JSON (the zod schema already validated it). */
 const unitViewSchema = { type: 'json' };
 
+
+/** Machine-readable trailer appended to every render: session logs carry
+ *  only the RENDERED text, so the Muse 工作台 bridge parses this compact
+ *  JSON envelope instead of scraping prose. `-->` inside strings is escaped
+ *  as \u003e (valid JSON, restores exactly on parse). */
+function museTrailer(tool, value) {
+  return `\n\n<!--muse:${tool} ${JSON.stringify(value).replace(/-->/g, '--\\u003e')}-->`;
+}
+
 const OUTPUT = {
   schema: {
     type: 'object',
@@ -432,7 +441,7 @@ const OUTPUT = {
   },
   render: (_args, value) => [{
     type: 'text',
-    text: value.ok
+    text: (value.ok
       ? (value.unit
         ? [
             `WorkUnit ${value.unit.id} [${value.unit.status}] rev=${value.unit.revision} plan v${value.unit.planVersion}`,
@@ -448,7 +457,7 @@ const OUTPUT = {
             `${value.units?.length ?? 0} WorkUnit(s):`,
             ...(value.units ?? []).map((u) => `- ${u.id} [${u.status}] ${u.objective.slice(0, 80)}${u.objective.length > 80 ? '…' : ''} (session ${u.sessionId}, updated ${new Date(u.updatedAt).toISOString()})`),
           ].join('\n'))
-      : `WorkUnit op failed: ${value.error ?? 'unknown error'}`,
+      : `WorkUnit op failed: ${value.error ?? 'unknown error'}`) + museTrailer('workunit', value),
   }],
 };
 

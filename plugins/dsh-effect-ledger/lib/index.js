@@ -307,6 +307,15 @@ Ops:
 
 An approval field may be attached at propose time when approval already happened (who/scope); guardrails may also approve entries itself. Entries carry the resource version you decided against — record it when known (file mtime, etag, git sha) so stale-decision conflicts are visible.`;
 
+
+/** Machine-readable trailer appended to every render: session logs carry
+ *  only the RENDERED text, so the Muse 工作台 bridge parses this compact
+ *  JSON envelope instead of scraping prose. `-->` inside strings is escaped
+ *  as \u003e (valid JSON, restores exactly on parse). */
+function museTrailer(tool, value) {
+  return `\n\n<!--muse:${tool} ${JSON.stringify(value).replace(/-->/g, '--\\u003e')}-->`;
+}
+
 const OUTPUT = {
   schema: {
     type: 'object',
@@ -322,7 +331,7 @@ const OUTPUT = {
   },
   render: (_args, value) => [{
     type: 'text',
-    text: value.ok
+    text: (value.ok
       ? (value.entry
         ? [
             `Effect ${value.entry.idempotencyKey} [${value.entry.status}]${value.fresh === false ? ' (already ledgered — do not re-execute)' : ''}${value.duplicate === true ? ' (DUPLICATE — already executed)' : ''}`,
@@ -336,7 +345,7 @@ const OUTPUT = {
             `${value.entries?.length ?? 0} ledger entr${value.entries?.length === 1 ? 'y' : 'ies'}:`,
             ...(value.entries ?? []).map((e) => `- [${e.status}] ${e.tool}:${e.action} ${e.resource} (key ${e.idempotencyKey.slice(0, 60)}${e.idempotencyKey.length > 60 ? '…' : ''}${e.executeAttempts > 1 ? `, attempts=${e.executeAttempts}` : ''})`),
           ].join('\n'))
-      : `effect op failed: ${value.error ?? 'unknown error'}`,
+      : `effect op failed: ${value.error ?? 'unknown error'}`) + museTrailer('effect', value),
   }],
 };
 

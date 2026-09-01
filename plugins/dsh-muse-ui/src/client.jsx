@@ -3,11 +3,13 @@
  *
  * Registers one entry in the `conversation.view` list slot (order 20, right
  * of the trajectory tab) and renders the live `muse` session projection
- * pushed by dsh-muse-bridge as a graphical board: a task-journey milestone
- * track with step dots and budget gauges, an effect pipeline with per-entry
- * station tracks, an evidence wall, a delivery seal and a live activity
- * timeline. All graphics are hand-rolled CSS/SVG — no chart library, no
- * externals beyond the browser module-table baseline (react).
+ * pushed by dsh-muse-bridge. Layout follows progressive disclosure:
+ *
+ *   首屏（一眼看懂）: 任务状态 + 目标 + 大进度条 + 步骤清单 → 交付物 → 最新动态
+ *   技术细节（点击展开）: 统计 / 里程碑 / 预算仪表 / 副作用流水线 / 证据墙 / 评测 / 完整动态
+ *
+ * All graphics are hand-rolled CSS/SVG — no chart library, no externals
+ * beyond the browser module-table baseline (react).
  *
  * @module dsh-muse-ui/client
  */
@@ -28,7 +30,74 @@ const CSS = `
 .muse-view * { box-sizing: border-box; }
 @keyframes muse-pulse { 0%,100% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 45%, transparent); } 50% { box-shadow: 0 0 0 5px transparent; } }
 @keyframes muse-breathe { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
-/* header stat pills */
+/* ============ 首屏：Hero 任务卡 ============ */
+.muse-hero { border: 1px solid var(--dsw-alias-border-l2, #303030); border-radius: 14px; background: var(--dsw-alias-bg-layer-1, #1d1d1d); padding: 16px 18px 14px; display: flex; flex-direction: column; gap: 10px; }
+.muse-hero-top { display: flex; align-items: center; gap: 10px; }
+.muse-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 3px 12px 3px 8px; border-radius: 999px; flex: none; }
+.muse-status .muse-status-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.muse-status.is-blue { color: var(--dsw-alias-state-business-primary, #4a7dff); background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 13%, transparent); }
+.muse-status.is-blue .muse-status-dot { animation: muse-breathe 1.6s ease infinite; }
+.muse-status.is-green { color: var(--dsw-alias-state-success-primary, #5cb85c); background: color-mix(in srgb, var(--dsw-alias-state-success-primary, #5cb85c) 13%, transparent); }
+.muse-status.is-amber { color: var(--dsw-alias-state-warn-label, #d90); background: color-mix(in srgb, var(--dsw-alias-state-warn-label, #d90) 12%, transparent); }
+.muse-status.is-amber .muse-status-dot { animation: muse-breathe 2.2s ease infinite; }
+.muse-status.is-red { color: var(--dsw-alias-state-error-primary, #f66); background: color-mix(in srgb, var(--dsw-alias-state-error-primary, #f66) 12%, transparent); }
+.muse-status.is-dim { color: var(--dsw-alias-label-tertiary, #999); background: var(--dsw-alias-bg-layer-2, #2a2a2a); }
+.muse-hero-objective { margin: 0; font-size: 14.5px; font-weight: 600; line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.muse-progress { display: flex; align-items: center; gap: 10px; }
+.muse-progress-track { flex: 1; height: 8px; border-radius: 4px; background: var(--dsw-alias-bg-layer-2, #2c2c2c); overflow: hidden; }
+.muse-progress-fill { height: 100%; border-radius: 4px; background: var(--dsw-alias-state-business-primary, #4a7dff); transition: width .5s ease; min-width: 0; }
+.muse-progress.is-done .muse-progress-fill { background: var(--dsw-alias-state-success-primary, #5cb85c); }
+.muse-progress.is-warn .muse-progress-fill { background: var(--dsw-alias-state-warn-label, #d90); }
+.muse-progress.is-fail .muse-progress-fill { background: var(--dsw-alias-state-error-primary, #f66); }
+.muse-progress-label { flex: none; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--dsw-alias-label-secondary, #bbb); }
+/* 步骤清单（纵向、全标题、一眼可读） */
+.muse-steplist { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
+.muse-steprow { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 9px; line-height: 1.45; }
+.muse-steprow .muse-stepicon { flex: none; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-style: normal; background: var(--dsw-alias-bg-layer-2, #2c2c2c); color: var(--dsw-alias-label-dimmed, #666); }
+.muse-steprow .muse-steptitle { min-width: 0; overflow-wrap: anywhere; color: var(--dsw-alias-label-tertiary, #999); }
+.muse-steprow.is-done .muse-stepicon { background: color-mix(in srgb, var(--dsw-alias-state-success-primary, #5cb85c) 20%, var(--dsw-alias-bg-layer-2, #222)); color: var(--dsw-alias-state-success-primary, #5cb85c); }
+.muse-steprow.is-done .muse-steptitle { color: var(--dsw-alias-label-secondary, #bbb); }
+.muse-steprow.is-in_progress { background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 8%, transparent); }
+.muse-steprow.is-in_progress .muse-stepicon { background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 28%, var(--dsw-alias-bg-layer-2, #222)); color: var(--dsw-alias-state-business-primary, #4a7dff); animation: muse-pulse 1.8s ease infinite; }
+.muse-steprow.is-in_progress .muse-steptitle { color: var(--dsw-alias-label-primary, #eee); font-weight: 600; }
+.muse-steprow.is-failed .muse-stepicon { background: color-mix(in srgb, var(--dsw-alias-state-error-primary, #f66) 22%, var(--dsw-alias-bg-layer-2, #222)); color: var(--dsw-alias-state-error-primary, #f66); }
+.muse-steprow.is-failed .muse-steptitle { color: var(--dsw-alias-state-error-primary, #f66); }
+.muse-steprow.is-skipped .muse-stepicon { opacity: .45; }
+.muse-steprow.is-skipped .muse-steptitle { opacity: .55; text-decoration: line-through; }
+/* 警告条 */
+.muse-alert { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 8px; font-weight: 600; animation: muse-breathe 2.2s ease infinite; }
+.muse-alert.is-warn { color: var(--dsw-alias-state-warn-label, #d90); background: color-mix(in srgb, var(--dsw-alias-state-warn-label, #d90) 12%, transparent); }
+.muse-alert.is-fail { color: var(--dsw-alias-state-error-primary, #f66); background: color-mix(in srgb, var(--dsw-alias-state-error-primary, #f66) 12%, transparent); animation: none; }
+/* ============ 首屏：交付物卡 ============ */
+.muse-card { border: 1px solid var(--dsw-alias-border-l2, #303030); border-radius: 12px; background: var(--dsw-alias-bg-layer-1, #1d1d1d); padding: 12px 14px; }
+.muse-card h4 { margin: 0 0 10px; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--dsw-alias-label-caption, #8a8a8a); display: flex; align-items: center; gap: 7px; }
+.muse-card h4 .muse-count { margin-left: auto; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--dsw-alias-label-dimmed, #777); }
+.muse-deliver-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.muse-deliver-head h4 { margin: 0; flex: 1; }
+.muse-seal { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px; flex: none; }
+.muse-seal.is-ok { color: var(--dsw-alias-state-success-primary, #5cb85c); background: color-mix(in srgb, var(--dsw-alias-state-success-primary, #5cb85c) 13%, transparent); }
+.muse-seal.is-wait { color: var(--dsw-alias-state-warn-label, #d90); background: color-mix(in srgb, var(--dsw-alias-state-warn-label, #d90) 11%, transparent); }
+.muse-artifacts { display: flex; flex-wrap: wrap; gap: 6px; }
+.muse-artifact { display: flex; gap: 6px; align-items: center; padding: 4px 10px; border-radius: 8px; background: var(--dsw-alias-bg-layer-2, #232323); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+.muse-artifact .muse-art-check { color: var(--dsw-alias-state-success-primary, #5cb85c); font-weight: 700; }
+.muse-artifact .muse-art-pending { color: var(--dsw-alias-label-dimmed, #888); }
+/* ============ 首屏：最新动态一行 ============ */
+.muse-latest { display: flex; align-items: center; gap: 9px; padding: 9px 14px; border-radius: 12px; border: 1px solid var(--dsw-alias-border-l2, #303030); background: var(--dsw-alias-bg-layer-1, #1d1d1d); font-size: 12px; }
+.muse-latest .muse-latest-ico { flex: none; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10.5px; background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 17%, transparent); }
+.muse-latest.is-write .muse-latest-ico { background: color-mix(in srgb, var(--dsw-alias-state-warn-label, #d90) 17%, transparent); }
+.muse-latest .muse-latest-label { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dsw-alias-label-secondary, #bbb); }
+.muse-latest.is-denied .muse-latest-label { color: var(--dsw-alias-state-error-primary, #f66); }
+.muse-latest .muse-latest-k { flex: none; color: var(--dsw-alias-label-dimmed, #888); font-size: 11px; }
+/* ============ 技术细节（点击展开） ============ */
+details.muse-tech { border: 1px solid var(--dsw-alias-border-l2, #303030); border-radius: 12px; background: var(--dsw-alias-bg-layer-1, #1d1d1d); }
+details.muse-tech > summary { cursor: pointer; list-style: none; padding: 11px 14px; font-size: 12px; font-weight: 600; color: var(--dsw-alias-label-caption, #8a8a8a); display: flex; align-items: center; gap: 8px; border-radius: 12px; user-select: none; }
+details.muse-tech > summary::-webkit-details-marker { display: none; }
+details.muse-tech > summary::before { content: "▸"; display: inline-block; transition: transform .18s ease; color: var(--dsw-alias-label-dimmed, #777); }
+details.muse-tech[open] > summary::before { transform: rotate(90deg); }
+details.muse-tech > summary:hover { color: var(--dsw-alias-label-primary, #eee); }
+details.muse-tech .muse-tech-body { display: flex; flex-direction: column; gap: 12px; padding: 2px 14px 14px; }
+details.muse-tech .muse-card { background: var(--dsw-alias-bg-layer-2, #232323); }
+/* 统计胶囊 */
 .muse-pills { display: flex; flex-wrap: wrap; gap: 8px; }
 .muse-pill { display: flex; align-items: center; gap: 7px; padding: 5px 12px 5px 6px; border-radius: 999px; background: var(--dsw-alias-bg-layer-1, #1d1d1d); border: 1px solid var(--dsw-alias-border-l2, #303030); }
 .muse-pill .muse-ico { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; background: color-mix(in srgb, currentColor 16%, transparent); }
@@ -39,13 +108,7 @@ const CSS = `
 .muse-pill.is-green { color: var(--dsw-alias-state-success-primary, #5cb85c); }
 .muse-pill.is-red { color: var(--dsw-alias-state-error-primary, #f66); }
 .muse-pill.is-red b, .muse-pill.is-green b, .muse-pill.is-blue b, .muse-pill.is-amber b { color: var(--dsw-alias-label-primary, #eee); }
-/* cards */
-.muse-card { border: 1px solid var(--dsw-alias-border-l2, #303030); border-radius: 12px; background: var(--dsw-alias-bg-layer-1, #1d1d1d); padding: 12px 14px; }
-.muse-card h4 { margin: 0 0 10px; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--dsw-alias-label-caption, #8a8a8a); display: flex; align-items: center; gap: 7px; }
-.muse-card h4 .muse-count { margin-left: auto; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--dsw-alias-label-dimmed, #777); }
-.muse-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 12px; }
-@media (max-width: 900px) { .muse-grid { grid-template-columns: 1fr; } }
-/* journey milestones */
+/* 里程碑轨道（技术区内） */
 .muse-track { position: relative; display: flex; justify-content: space-between; margin: 6px 10px 2px; }
 .muse-track::before { content: ""; position: absolute; top: 13px; left: 24px; right: 24px; height: 3px; border-radius: 2px; background: var(--dsw-alias-bg-layer-2, #2c2c2c); }
 .muse-track .muse-fill { position: absolute; top: 13px; left: 24px; height: 3px; border-radius: 2px; background: var(--dsw-alias-state-success-primary, #5cb85c); transition: width .5s ease; max-width: calc(100% - 48px); }
@@ -54,31 +117,13 @@ const CSS = `
 .muse-mile { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; width: 72px; }
 .muse-mile .muse-dot { width: 27px; height: 27px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; background: var(--dsw-alias-bg-layer-2, #2c2c2c); border: 2px solid transparent; color: var(--dsw-alias-label-dimmed, #666); }
 .muse-mile.is-reached .muse-dot { background: color-mix(in srgb, var(--dsw-alias-state-success-primary, #5cb85c) 22%, var(--dsw-alias-bg-layer-2, #222)); color: var(--dsw-alias-state-success-primary, #5cb85c); }
-.muse-mile.is-current .muse-dot { background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 26%, var(--dsw-alias-bg-layer-2, #222)); color: #fff; border-color: var(--dsw-alias-state-business-primary, #4a7dff); animation: muse-pulse 1.8s ease infinite; color: var(--dsw-alias-state-business-primary, #4a7dff); }
+.muse-mile.is-current .muse-dot { background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 26%, var(--dsw-alias-bg-layer-2, #222)); border-color: var(--dsw-alias-state-business-primary, #4a7dff); animation: muse-pulse 1.8s ease infinite; color: var(--dsw-alias-state-business-primary, #4a7dff); }
 .muse-track.is-warn .muse-mile.is-current .muse-dot { border-color: var(--dsw-alias-state-warn-label, #d90); background: color-mix(in srgb, var(--dsw-alias-state-warn-label, #d90) 26%, var(--dsw-alias-bg-layer-2, #222)); color: var(--dsw-alias-state-warn-label, #d90); }
 .muse-track.is-fail .muse-mile.is-current .muse-dot { border-color: var(--dsw-alias-state-error-primary, #f66); background: color-mix(in srgb, var(--dsw-alias-state-error-primary, #f66) 26%, var(--dsw-alias-bg-layer-2, #222)); color: var(--dsw-alias-state-error-primary, #f66); animation: none; }
 .muse-mile span { font-size: 11px; color: var(--dsw-alias-label-tertiary, #8f8f8f); }
 .muse-mile.is-reached span, .muse-mile.is-current span { color: var(--dsw-alias-label-primary, #eee); font-weight: 600; }
-/* alert banner */
-.muse-alert { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 6px 12px; border-radius: 8px; font-weight: 600; animation: muse-breathe 2.2s ease infinite; }
-.muse-alert.is-warn { color: var(--dsw-alias-state-warn-label, #d90); background: color-mix(in srgb, var(--dsw-alias-state-warn-label, #d90) 12%, transparent); }
-.muse-alert.is-fail { color: var(--dsw-alias-state-error-primary, #f66); background: color-mix(in srgb, var(--dsw-alias-state-error-primary, #f66) 12%, transparent); animation: none; }
-/* objective */
-.muse-objective { margin: 10px 0 0; line-height: 1.55; }
-.muse-objective .muse-k { color: var(--dsw-alias-label-caption, #8a8a8a); margin-right: 6px; }
-.muse-note { color: var(--dsw-alias-label-dimmed, #888); font-size: 11.5px; line-height: 1.5; }
-/* steps chain */
-.muse-steps { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; margin-top: 4px; }
-.muse-stepdot { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 52px; }
-.muse-stepdot i { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-style: normal; background: var(--dsw-alias-bg-layer-2, #2c2c2c); color: var(--dsw-alias-label-dimmed, #666); }
-.muse-stepdot.is-done i { background: color-mix(in srgb, var(--dsw-alias-state-success-primary, #5cb85c) 22%, var(--dsw-alias-bg-layer-2, #222)); color: var(--dsw-alias-state-success-primary, #5cb85c); }
-.muse-stepdot.is-in_progress i { background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 30%, var(--dsw-alias-bg-layer-2, #222)); color: #fff; animation: muse-pulse 1.8s ease infinite; }
-.muse-stepdot.is-failed i { background: color-mix(in srgb, var(--dsw-alias-state-error-primary, #f66) 24%, var(--dsw-alias-bg-layer-2, #222)); color: var(--dsw-alias-state-error-primary, #f66); }
-.muse-stepdot.is-skipped i { opacity: .45; text-decoration: line-through; }
-.muse-stepdot em { font-style: normal; font-size: 10px; color: var(--dsw-alias-label-dimmed, #777); max-width: 52px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
-.muse-step-link { width: 18px; height: 2px; margin-bottom: 16px; background: var(--dsw-alias-bg-layer-2, #333); flex: none; }
-/* budget gauges */
-.muse-budget { display: flex; align-items: center; gap: 18px; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--dsw-alias-border-l2, #303030); }
+/* 预算仪表 */
+.muse-budget { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
 .muse-gauge { display: flex; align-items: center; gap: 9px; }
 .muse-gauge svg { display: block; }
 .muse-gauge .muse-gauge-text { display: flex; flex-direction: column; gap: 1px; }
@@ -86,24 +131,27 @@ const CSS = `
 .muse-gauge .muse-gauge-text span { font-size: 10.5px; color: var(--dsw-alias-label-dimmed, #888); }
 .muse-gauge.is-warn circle.val { stroke: var(--dsw-alias-state-warn-label, #d90); }
 .muse-gauge.is-over circle.val { stroke: var(--dsw-alias-state-error-primary, #f66); }
-/* pipeline entries */
+/* 网格 */
+.muse-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 12px; }
+@media (max-width: 900px) { .muse-grid { grid-template-columns: 1fr; } }
+/* 流水线 */
 .muse-lines { display: flex; flex-direction: column; gap: 7px; }
-.muse-eff { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 9px; background: var(--dsw-alias-bg-layer-2, #232323); }
-.muse-eff.is-denied { background: color-mix(in srgb, var(--dsw-alias-state-error-primary, #f66) 10%, var(--dsw-alias-bg-layer-2, #232323)); }
+.muse-eff { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 9px; background: var(--dsw-alias-bg-layer-1, #1d1d1d); }
+details.muse-tech .muse-eff, details.muse-tech .muse-evi { background: var(--dsw-alias-bg-layer-1, #1d1d1d); }
+.muse-eff.is-denied { background: color-mix(in srgb, var(--dsw-alias-state-error-primary, #f66) 10%, var(--dsw-alias-bg-layer-1, #1d1d1d)); }
 .muse-eff .muse-ico { width: 26px; height: 26px; border-radius: 8px; flex: none; display: flex; align-items: center; justify-content: center; font-size: 13px; background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 15%, transparent); }
 .muse-eff .muse-eff-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .muse-eff .muse-eff-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; }
 .muse-eff .muse-eff-sub { display: flex; gap: 6px; align-items: center; font-size: 10px; color: var(--dsw-alias-label-dimmed, #777); }
 .muse-eff .muse-eff-sub .muse-origin { border: 1px solid var(--dsw-alias-border-l2, #363636); border-radius: 6px; padding: 0 5px; }
-/* station mini-track */
 .muse-stations { position: relative; display: flex; gap: 10px; align-items: center; flex: none; }
-.muse-stations i { width: 9px; height: 9px; border-radius: 50%; background: var(--dsw-alias-bg-layer-1, #3a3a3a); border: 1px solid var(--dsw-alias-border-l2, #444); }
+.muse-stations i { width: 9px; height: 9px; border-radius: 50%; background: var(--dsw-alias-bg-layer-2, #3a3a3a); border: 1px solid var(--dsw-alias-border-l2, #444); }
 .muse-stations i.on-amber { background: var(--dsw-alias-state-warn-label, #d90); border-color: transparent; }
 .muse-stations i.on-green { background: var(--dsw-alias-state-success-primary, #5cb85c); border-color: transparent; }
 .muse-stations i.on-blue { background: var(--dsw-alias-state-business-primary, #4a7dff); border-color: transparent; animation: muse-breathe 1.4s ease infinite; }
 .muse-stations i.on-red { background: var(--dsw-alias-state-error-primary, #f66); border-color: transparent; }
-/* evidence wall */
-.muse-evi { display: flex; gap: 9px; align-items: flex-start; padding: 7px 9px; border-radius: 9px; background: var(--dsw-alias-bg-layer-2, #232323); }
+/* 证据墙 */
+.muse-evi { display: flex; gap: 9px; align-items: flex-start; padding: 7px 9px; border-radius: 9px; background: var(--dsw-alias-bg-layer-1, #1d1d1d); }
 .muse-evi .muse-ico { width: 26px; height: 26px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; font-size: 12px; }
 .muse-evi.is-trusted .muse-ico { background: color-mix(in srgb, var(--dsw-alias-state-success-primary, #5cb85c) 16%, transparent); }
 .muse-evi.is-untrusted .muse-ico { background: color-mix(in srgb, var(--dsw-alias-state-warn-label, #d90) 16%, transparent); }
@@ -115,24 +163,16 @@ const CSS = `
 .muse-tag.is-amber { color: var(--dsw-alias-state-warn-label, #d90); background: color-mix(in srgb, var(--dsw-alias-state-warn-label, #d90) 13%, transparent); }
 .muse-tag.is-red { color: var(--dsw-alias-state-error-primary, #f66); background: color-mix(in srgb, var(--dsw-alias-state-error-primary, #f66) 13%, transparent); }
 .muse-tag.is-blue { color: var(--dsw-alias-state-business-primary, #4a7dff); background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 13%, transparent); }
-.muse-tag.is-dim { color: var(--dsw-alias-label-dimmed, #888); background: var(--dsw-alias-bg-layer-1, #2a2a2a); }
-.muse-hash { font-family: ui-monospace, monospace; font-size: 9.5px; color: var(--dsw-alias-label-dimmed, #666); }
-/* delivery seal */
-.muse-delivery { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
-.muse-seal { width: 54px; height: 54px; border-radius: 50%; flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 22px; }
-.muse-seal.is-ok { background: color-mix(in srgb, var(--dsw-alias-state-success-primary, #5cb85c) 16%, transparent); color: var(--dsw-alias-state-success-primary, #5cb85c); box-shadow: 0 0 0 4px color-mix(in srgb, var(--dsw-alias-state-success-primary, #5cb85c) 8%, transparent); }
-.muse-seal.is-wait { background: color-mix(in srgb, var(--dsw-alias-state-warn-label, #d90) 14%, transparent); color: var(--dsw-alias-state-warn-label, #d90); }
-.muse-seal small { font-size: 8.5px; font-weight: 600; letter-spacing: .03em; }
-.muse-deliver-right { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
-.muse-artifacts { display: flex; flex-wrap: wrap; gap: 6px; }
-.muse-artifact { display: flex; gap: 5px; align-items: center; padding: 3px 9px; border-radius: 7px; background: var(--dsw-alias-bg-layer-2, #232323); font-family: ui-monospace, monospace; font-size: 10.5px; }
+.muse-tag.is-dim { color: var(--dsw-alias-label-dimmed, #888); background: var(--dsw-alias-bg-layer-2, #2a2a2a); }
+.muse-hash { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9.5px; color: var(--dsw-alias-label-dimmed, #666); }
+.muse-note { color: var(--dsw-alias-label-dimmed, #888); font-size: 11.5px; line-height: 1.5; margin: 0; }
+/* 评测瓦片 */
 .muse-eval { display: flex; gap: 8px; flex-wrap: wrap; }
-.muse-tile { display: flex; flex-direction: column; gap: 1px; padding: 5px 11px; border-radius: 8px; background: var(--dsw-alias-bg-layer-2, #232323); }
+.muse-tile { display: flex; flex-direction: column; gap: 1px; padding: 5px 11px; border-radius: 8px; background: var(--dsw-alias-bg-layer-1, #1d1d1d); }
 .muse-tile b { font-size: 13px; font-variant-numeric: tabular-nums; }
 .muse-tile span { font-size: 10px; color: var(--dsw-alias-label-dimmed, #888); }
-/* feed timeline */
-.muse-feed { flex: 1; min-height: 110px; display: flex; flex-direction: column; }
-.muse-feed .muse-lines { flex: 1; overflow-y: auto; gap: 5px; }
+/* 动态 feed */
+.muse-feed .muse-lines { max-height: 220px; overflow-y: auto; gap: 5px; }
 .muse-feed-row { display: flex; gap: 9px; align-items: center; min-width: 0; }
 .muse-feed-row .muse-ico { width: 22px; height: 22px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; font-size: 10.5px; }
 .muse-feed-row.is-muse .muse-ico { background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 17%, transparent); }
@@ -140,7 +180,7 @@ const CSS = `
 .muse-feed-row .muse-feed-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: var(--dsw-alias-label-secondary, #bbb); }
 .muse-feed-row.is-denied .muse-feed-label { color: var(--dsw-alias-state-error-primary, #f66); }
 .muse-feed-row .muse-loc { flex: none; font-size: 9.5px; color: var(--dsw-alias-label-dimmed, #5f5f5f); font-variant-numeric: tabular-nums; }
-/* empty state */
+/* 空态 */
 .muse-empty { margin: auto; max-width: 430px; text-align: center; color: var(--dsw-alias-label-tertiary, #999); display: flex; flex-direction: column; gap: 10px; align-items: center; }
 .muse-empty h3 { margin: 0; font-size: 13.5px; font-weight: 600; color: var(--dsw-alias-label-secondary, #bbb); }
 .muse-empty p { margin: 0; line-height: 1.65; }
@@ -184,6 +224,19 @@ function journey(status, hasVerification) {
   }
 }
 
+/** Status chip tone + icon for the hero (plain-language first screen). */
+function statusTone(status) {
+  switch (status) {
+    case 'active': return 'is-blue';
+    case 'done': return 'is-green';
+    case 'waiting_approval':
+    case 'blocked': return 'is-amber';
+    case 'failed':
+    case 'cancelled': return 'is-red';
+    default: return 'is-dim';
+  }
+}
+
 /** Station fill states per effect status: [propose, ledger, execute]. */
 function stations(status) {
   switch (status) {
@@ -217,7 +270,114 @@ function tx(t, key, fallback) {
 }
 
 /* ------------------------------------------------------------------------ */
-/* Sections                                                                   */
+/* 首屏 sections                                                               */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Hero: plain-language task state at a glance — status chip, objective,
+ * one big progress bar (steps done/total), then the step checklist with
+ * full titles. The current step breathes; failed steps go red.
+ */
+function HeroCard({ unit, t }) {
+  if (unit == null) {
+    return (
+      <section className="muse-hero">
+        <div className="muse-hero-top">
+          <span className="muse-status is-dim"><i className="muse-status-dot" />{t('hero.status.none')}</span>
+        </div>
+        <p className="muse-note">{t('journey.none')}</p>
+      </section>
+    );
+  }
+  const status = unit.status ?? 'draft';
+  const tone = statusTone(status);
+  const steps = unit.steps ?? [];
+  const done = steps.filter((s) => s.status === 'done').length;
+  const trip = journey(status, unit.verification != null);
+  /* progress: precise step ratio when a plan exists, else coarse milestone */
+  const pct = steps.length > 0
+    ? Math.round((done / steps.length) * 100)
+    : (status === 'done' ? 100 : Math.round((trip.reach / 3) * 100));
+  const progressTone = trip.tone === 'fail' ? 'is-fail' : trip.tone === 'warn' ? 'is-warn' : status === 'done' ? 'is-done' : '';
+  const alertKey = trip.tone === 'warn' ? `journey.alert.${status}` : trip.tone === 'fail' ? `journey.${status}` : null;
+
+  return (
+    <section className="muse-hero">
+      <div className="muse-hero-top">
+        <span className={`muse-status ${tone}`}><i className="muse-status-dot" />{tx(t, `hero.status.${status}`, status)}</span>
+        {(unit.constraints?.length ?? 0) > 0 && (
+          <span className="muse-note" title={unit.constraints.join('\n')}>📎 {t('journey.constraints')} × {unit.constraints.length}</span>
+        )}
+      </div>
+      <p className="muse-hero-objective" title={unit.objective}>{unit.objective ?? '—'}</p>
+      <div className={`muse-progress${progressTone ? ` ${progressTone}` : ''}`}>
+        <div className="muse-progress-track"><div className="muse-progress-fill" style={{ width: `${pct}%` }} /></div>
+        <span className="muse-progress-label">
+          {steps.length > 0 ? t('hero.progress', { done, total: steps.length, pct }) : `${pct}%`}
+        </span>
+      </div>
+      {alertKey != null && (
+        <div className={`muse-alert is-${trip.tone === 'warn' ? 'warn' : 'fail'}`}>
+          {trip.tone === 'warn' ? '⏳' : '⛔'} {t(alertKey)}
+        </div>
+      )}
+      {steps.length > 0 && (
+        <div className="muse-steplist">
+          {steps.map((step, index) => (
+            <div key={step.id ?? index} className={`muse-steprow is-${step.status}`} title={step.note ?? undefined}>
+              <i className="muse-stepicon">{step.status === 'pending' ? index + 1 : STEP_ICON[step.status] ?? '·'}</i>
+              <span className="muse-steptitle">{step.title}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** Deliverables front and center: verification seal + artifact chips. */
+function ArtifactsCard({ unit, t }) {
+  const verified = unit?.verification != null;
+  const artifacts = unit?.artifacts ?? [];
+  return (
+    <section className="muse-card">
+      <div className="muse-deliver-head">
+        <h4>📦 {t('delivery.artifacts')}</h4>
+        <span className={`muse-seal ${verified ? 'is-ok' : 'is-wait'}`}>
+          {verified ? `✓ ${t('delivery.verified')}` : `… ${t('delivery.unverified')}`}
+        </span>
+      </div>
+      {artifacts.length === 0
+        ? <p className="muse-note">{t('artifacts.empty')}</p>
+        : (
+          <div className="muse-artifacts">
+            {artifacts.map((artifact) => (
+              <span key={artifact.id ?? artifact.path} className="muse-artifact" title={artifact.path}>
+                📄 {shortPath(artifact.path)}
+                <span className={verified ? 'muse-art-check' : 'muse-art-pending'}>{verified ? '✓' : '…'}</span>
+              </span>
+            ))}
+          </div>
+        )}
+    </section>
+  );
+}
+
+/** One plain-language line: what just happened. */
+function LatestRow({ activity, t }) {
+  const latest = activity.length > 0 ? activity[activity.length - 1] : null;
+  if (latest == null) return null;
+  return (
+    <div className={`muse-latest is-${latest.kind}${latest.status === 'denied' ? ' is-denied' : ''}`}>
+      <span className="muse-latest-ico">{latest.kind === 'muse' ? '◎' : '✎'}</span>
+      <span className="muse-latest-k">{t('latest.prefix')}</span>
+      <span className="muse-latest-label">{latest.label}</span>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------------ */
+/* 技术细节 sections（默认折叠）                                                */
 /* ------------------------------------------------------------------------ */
 
 function StatPills({ muse, t }) {
@@ -257,26 +417,16 @@ function Gauge({ ratio, tone, value, label }) {
   );
 }
 
-function JourneyCard({ unit, t }) {
-  if (unit == null) {
-    return (
-      <section className="muse-card">
-        <h4>🧭 {t('journey.title')}</h4>
-        <p className="muse-note">{t('journey.none')}</p>
-      </section>
-    );
-  }
-  const hasVerification = unit.verification != null;
-  const trip = journey(unit.status, hasVerification);
+/** Milestone track + budget gauges (technical layer). */
+function JourneyTechCard({ unit, t }) {
+  if (unit == null) return null;
+  const trip = journey(unit.status, unit.verification != null);
   const milestones = ['draft', 'active', 'verify', 'done'];
   const fillPercent = trip.current === null ? 100 : (trip.current / (milestones.length - 1)) * 100;
   const budget = unit.budget ?? {};
   const tokenRatio = budget.maxTokens ? (budget.spentTokens ?? 0) / budget.maxTokens : 0;
   const failureRatio = budget.maxFailures ? (budget.failures ?? 0) / budget.maxFailures : 0;
   const roundRatio = budget.maxRounds ? (budget.roundsUsed ?? 0) / budget.maxRounds : 0;
-  const alertKey = trip.tone === 'warn' ? `journey.alert.${unit.status}` : trip.tone === 'fail' ? `journey.${unit.status}` : null;
-  const steps = unit.steps ?? [];
-
   return (
     <section className="muse-card">
       <h4>🧭 {t('journey.title')}<span className="muse-count">v{unit.planVersion ?? 0}</span></h4>
@@ -293,29 +443,7 @@ function JourneyCard({ unit, t }) {
           );
         })}
       </div>
-      {alertKey != null && (
-        <div className={`muse-alert is-${trip.tone === 'warn' ? 'warn' : 'fail'}`}>
-          {trip.tone === 'warn' ? '⏳' : '⛔'} {t(alertKey)}
-        </div>
-      )}
-      <p className="muse-objective"><span className="muse-k">📌 {t('journey.objective')}</span>{unit.objective ?? '—'}</p>
-      {(unit.constraints?.length ?? 0) > 0 && (
-        <p className="muse-note">📎 {t('journey.constraints')}: {unit.constraints.join(' · ')}</p>
-      )}
-      {steps.length > 0 && (
-        <div className="muse-steps">
-          {steps.map((step, index) => (
-            <span key={step.id} style={{ display: 'contents' }}>
-              {index > 0 && <span className="muse-step-link" />}
-              <span className={`muse-stepdot is-${step.status}`} title={`${step.title}${step.note ? ` — ${step.note}` : ''}`}>
-                <i>{STEP_ICON[step.status] ?? '·'}</i>
-                <em>{step.title}</em>
-              </span>
-            </span>
-          ))}
-        </div>
-      )}
-      <div className="muse-budget">
+      <div className="muse-budget" style={{ marginTop: 12 }}>
         <Gauge ratio={tokenRatio} tone={tokenRatio > 0.9 ? 'is-over' : tokenRatio > 0.7 ? 'is-warn' : ''}
           value={`${formatTokens(budget.spentTokens)}/${formatTokens(budget.maxTokens)}`} label={t('journey.budget.tokens')} />
         <Gauge ratio={failureRatio} tone={failureRatio >= 1 ? 'is-over' : failureRatio >= 0.5 ? 'is-warn' : ''}
@@ -396,38 +524,20 @@ function EvidenceWall({ evidence, t, now }) {
   );
 }
 
-function DeliveryCard({ unit, evaluation, t }) {
-  const verified = unit?.verification != null;
+function EvalCard({ evaluation, t }) {
   const summary = evaluation?.summary;
   return (
     <section className="muse-card">
-      <h4>📦 {t('delivery.title')}</h4>
-      <div className="muse-delivery">
-        <div className={`muse-seal ${verified ? 'is-ok' : 'is-wait'}`}>
-          {verified ? '✓' : '？'}
-          <small>{verified ? t('delivery.verified') : t('delivery.unverified')}</small>
+      <h4>📊 {t('eval.title')}</h4>
+      {summary != null ? (
+        <div className="muse-eval">
+          <span className="muse-tile"><b>{(100 * (summary.verifiedSuccessRate ?? 0)).toFixed(0)}%</b><span>{t('delivery.eval.verified')}</span></span>
+          <span className="muse-tile"><b>{(100 * (summary.duplicateSideEffectRate ?? 0)).toFixed(1)}%</b><span>{t('delivery.eval.duplicates')}</span></span>
+          <span className="muse-tile"><b>{formatTokens(summary.totalTokens)}</b><span>{t('delivery.eval.tokens')}</span></span>
         </div>
-        <div className="muse-deliver-right">
-          {(unit?.artifacts ?? []).length > 0 && (
-            <div className="muse-artifacts">
-              {unit.artifacts.map((artifact) => (
-                <span key={artifact.id ?? artifact.path} className="muse-artifact" title={artifact.path}>
-                  📄 {shortPath(artifact.path)} {verified ? '✓' : '…'}
-                </span>
-              ))}
-            </div>
-          )}
-          {summary != null ? (
-            <div className="muse-eval">
-              <span className="muse-tile"><b>{(100 * (summary.verifiedSuccessRate ?? 0)).toFixed(0)}%</b><span>{t('delivery.eval.verified')}</span></span>
-              <span className="muse-tile"><b>{(100 * (summary.duplicateSideEffectRate ?? 0)).toFixed(1)}%</b><span>{t('delivery.eval.duplicates')}</span></span>
-              <span className="muse-tile"><b>{formatTokens(summary.totalTokens)}</b><span>{t('delivery.eval.tokens')}</span></span>
-            </div>
-          ) : (
-            <p className="muse-note">{t('delivery.noEval')}</p>
-          )}
-        </div>
-      </div>
+      ) : (
+        <p className="muse-note">{t('delivery.noEval')}</p>
+      )}
     </section>
   );
 }
@@ -454,6 +564,26 @@ function Feed({ activity, t }) {
           </div>
         )}
     </section>
+  );
+}
+
+/** The whole technical layer, hidden behind one click by default. */
+function TechDetails({ muse, t, now }) {
+  const unit = muse.workunit ?? null;
+  return (
+    <details className="muse-tech">
+      <summary>🔧 {t('tech.toggle')}</summary>
+      <div className="muse-tech-body">
+        <StatPills muse={muse} t={t} />
+        <JourneyTechCard unit={unit} t={t} />
+        <div className="muse-grid">
+          <PipelineCard effects={muse.effects ?? []} t={t} />
+          <EvidenceWall evidence={muse.evidence ?? []} t={t} now={now} />
+        </div>
+        <EvalCard evaluation={muse.eval} t={t} />
+        <Feed activity={muse.activity ?? []} t={t} />
+      </div>
+    </details>
   );
 }
 
@@ -485,14 +615,10 @@ function MuseView({ useProjection, t }) {
 
   return (
     <div className="muse-view">
-      <StatPills muse={muse} t={t} />
-      <JourneyCard unit={muse.workunit} t={t} />
-      <div className="muse-grid">
-        <PipelineCard effects={muse.effects ?? []} t={t} />
-        <EvidenceWall evidence={muse.evidence ?? []} t={t} now={now} />
-      </div>
-      <DeliveryCard unit={muse.workunit} evaluation={muse.eval} t={t} />
-      <Feed activity={muse.activity ?? []} t={t} />
+      <HeroCard unit={muse.workunit} t={t} />
+      <ArtifactsCard unit={muse.workunit} t={t} />
+      <LatestRow activity={muse.activity ?? []} t={t} />
+      <TechDetails muse={muse} t={t} now={now} />
     </div>
   );
 }

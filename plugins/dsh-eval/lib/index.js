@@ -316,6 +316,15 @@ Ops:
 
 Use after completing a unit, and when asked "how is the system performing".`;
 
+
+/** Machine-readable trailer appended to every render: session logs carry
+ *  only the RENDERED text, so the Muse 工作台 bridge parses this compact
+ *  JSON envelope instead of scraping prose. `-->` inside strings is escaped
+ *  as \u003e (valid JSON, restores exactly on parse). */
+function museTrailer(tool, value) {
+  return `\n\n<!--muse:${tool} ${JSON.stringify(value).replace(/-->/g, '--\\u003e')}-->`;
+}
+
 const OUTPUT = {
   schema: {
     type: 'object',
@@ -329,11 +338,11 @@ const OUTPUT = {
   },
   render: (_args, value) => [{
     type: 'text',
-    text: value.ok
+    text: (value.ok
       ? (value.summary
         ? `Eval summary: ${value.summary.verifiedSuccess}/${value.summary.workunits} verified, duplicate-effect rate ${value.summary.duplicateSideEffectRate ?? 'n/a'}, cost/verified-task ${value.summary.costPerVerifiedTaskTokens ?? 'n/a'} tokens.`
         : `Eval ${value.record?.workunitId ?? ''}: verified=${value.record?.result.verifiedSuccess}, tools=${value.record?.trajectory.toolCalls}, tokens=${value.record?.cost.totalTokens}.`)
-      : `eval op failed: ${value.error ?? 'unknown error'}`,
+      : `eval op failed: ${value.error ?? 'unknown error'}`) + museTrailer('eval', value),
   }],
 };
 

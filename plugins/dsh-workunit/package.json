@@ -1,6 +1,6 @@
 {
   "name": "dsh-workunit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Structured business-task state (WorkUnit) for the DeepSeek Harness: durable, revision-guarded, checkpoint/resumable task records that sit beside the session transcript — transcript is audit, WorkUnit is state.",
   "type": "module",

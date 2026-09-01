@@ -35,6 +35,20 @@ var import_react = require("react");
 var NS = "muse";
 var zh = {
   "view.muse": "Muse \u5DE5\u4F5C\u53F0",
+  /* 首屏（人话层） */
+  "hero.status.none": "\u672A\u5F00\u59CB",
+  "hero.status.draft": "\u5DF2\u7ACB\u9879",
+  "hero.status.active": "\u8FDB\u884C\u4E2D",
+  "hero.status.waiting_approval": "\u7B49\u5F85\u5BA1\u6279",
+  "hero.status.blocked": "\u53D7\u963B",
+  "hero.status.done": "\u5DF2\u5B8C\u6210",
+  "hero.status.failed": "\u5DF2\u5931\u8D25",
+  "hero.status.cancelled": "\u5DF2\u53D6\u6D88",
+  "hero.progress": "{done}/{total} \u6B65 \xB7 {pct}%",
+  "artifacts.empty": "\u4EFB\u52A1\u4EA4\u4ED8\u540E,\u8FD9\u91CC\u4F1A\u5217\u51FA\u4EA4\u4ED8\u7269\u6E05\u5355",
+  "latest.prefix": "\u6700\u65B0",
+  "tech.toggle": "\u6280\u672F\u7EC6\u8282(\u526F\u4F5C\u7528 \xB7 \u8BC1\u636E \xB7 \u8BC4\u6D4B \xB7 \u52A8\u6001)",
+  "eval.title": "\u8BC4\u6D4B\u6307\u6807",
   "empty.title": "\u7B49\u5F85 Muse \u6D3B\u52A8",
   "empty.body": "\u672C\u4F1A\u8BDD\u8FD8\u6CA1\u6709\u4EFB\u52A1\u6863\u6848\u3002agent \u7528 workunit / effect / evidence \u7B49\u5DE5\u5177\u5F00\u59CB\u5E72\u6D3B\u540E,\u8FD9\u91CC\u4F1A\u5B9E\u65F6\u5C55\u793A\u5B83\u7684\u7ED3\u6784\u5316\u5DE5\u4F5C\u65B9\u5F0F:\u4EFB\u52A1\u65C5\u7A0B\u3001\u526F\u4F5C\u7528\u6D41\u6C34\u7EBF\u3001\u8BC1\u636E\u5899\u4E0E\u4EA4\u4ED8\u6838\u9A8C\u3002",
   "stats.museCalls": "Muse \u8C03\u7528",
@@ -107,6 +121,19 @@ var zh = {
 };
 var en = {
   "view.muse": "Muse Studio",
+  "hero.status.none": "Not started",
+  "hero.status.draft": "Planned",
+  "hero.status.active": "Working",
+  "hero.status.waiting_approval": "Awaiting approval",
+  "hero.status.blocked": "Blocked",
+  "hero.status.done": "Done",
+  "hero.status.failed": "Failed",
+  "hero.status.cancelled": "Cancelled",
+  "hero.progress": "{done}/{total} steps \xB7 {pct}%",
+  "artifacts.empty": "Deliverables will be listed here once the task completes",
+  "latest.prefix": "Latest",
+  "tech.toggle": "Technical details (effects \xB7 evidence \xB7 eval \xB7 activity)",
+  "eval.title": "Evaluation",
   "empty.title": "Waiting for Muse activity",
   "empty.body": "No work unit yet. Once the agent starts working through workunit / effect / evidence tools, this view shows its structured workflow live: task journey, effect pipeline, evidence wall and delivery verification.",
   "stats.museCalls": "Muse calls",
@@ -182,7 +209,74 @@ var CSS = `
 .muse-view * { box-sizing: border-box; }
 @keyframes muse-pulse { 0%,100% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 45%, transparent); } 50% { box-shadow: 0 0 0 5px transparent; } }
 @keyframes muse-breathe { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
-/* header stat pills */
+/* ============ \u9996\u5C4F\uFF1AHero \u4EFB\u52A1\u5361 ============ */
+.muse-hero { border: 1px solid var(--dsw-alias-border-l2, #303030); border-radius: 14px; background: var(--dsw-alias-bg-layer-1, #1d1d1d); padding: 16px 18px 14px; display: flex; flex-direction: column; gap: 10px; }
+.muse-hero-top { display: flex; align-items: center; gap: 10px; }
+.muse-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 3px 12px 3px 8px; border-radius: 999px; flex: none; }
+.muse-status .muse-status-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.muse-status.is-blue { color: var(--dsw-alias-state-business-primary, #4a7dff); background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 13%, transparent); }
+.muse-status.is-blue .muse-status-dot { animation: muse-breathe 1.6s ease infinite; }
+.muse-status.is-green { color: var(--dsw-alias-state-success-primary, #5cb85c); background: color-mix(in srgb, var(--dsw-alias-state-success-primary, #5cb85c) 13%, transparent); }
+.muse-status.is-amber { color: var(--dsw-alias-state-warn-label, #d90); background: color-mix(in srgb, var(--dsw-alias-state-warn-label, #d90) 12%, transparent); }
+.muse-status.is-amber .muse-status-dot { animation: muse-breathe 2.2s ease infinite; }
+.muse-status.is-red { color: var(--dsw-alias-state-error-primary, #f66); background: color-mix(in srgb, var(--dsw-alias-state-error-primary, #f66) 12%, transparent); }
+.muse-status.is-dim { color: var(--dsw-alias-label-tertiary, #999); background: var(--dsw-alias-bg-layer-2, #2a2a2a); }
+.muse-hero-objective { margin: 0; font-size: 14.5px; font-weight: 600; line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.muse-progress { display: flex; align-items: center; gap: 10px; }
+.muse-progress-track { flex: 1; height: 8px; border-radius: 4px; background: var(--dsw-alias-bg-layer-2, #2c2c2c); overflow: hidden; }
+.muse-progress-fill { height: 100%; border-radius: 4px; background: var(--dsw-alias-state-business-primary, #4a7dff); transition: width .5s ease; min-width: 0; }
+.muse-progress.is-done .muse-progress-fill { background: var(--dsw-alias-state-success-primary, #5cb85c); }
+.muse-progress.is-warn .muse-progress-fill { background: var(--dsw-alias-state-warn-label, #d90); }
+.muse-progress.is-fail .muse-progress-fill { background: var(--dsw-alias-state-error-primary, #f66); }
+.muse-progress-label { flex: none; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--dsw-alias-label-secondary, #bbb); }
+/* \u6B65\u9AA4\u6E05\u5355\uFF08\u7EB5\u5411\u3001\u5168\u6807\u9898\u3001\u4E00\u773C\u53EF\u8BFB\uFF09 */
+.muse-steplist { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
+.muse-steprow { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 9px; line-height: 1.45; }
+.muse-steprow .muse-stepicon { flex: none; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-style: normal; background: var(--dsw-alias-bg-layer-2, #2c2c2c); color: var(--dsw-alias-label-dimmed, #666); }
+.muse-steprow .muse-steptitle { min-width: 0; overflow-wrap: anywhere; color: var(--dsw-alias-label-tertiary, #999); }
+.muse-steprow.is-done .muse-stepicon { background: color-mix(in srgb, var(--dsw-alias-state-success-primary, #5cb85c) 20%, var(--dsw-alias-bg-layer-2, #222)); color: var(--dsw-alias-state-success-primary, #5cb85c); }
+.muse-steprow.is-done .muse-steptitle { color: var(--dsw-alias-label-secondary, #bbb); }
+.muse-steprow.is-in_progress { background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 8%, transparent); }
+.muse-steprow.is-in_progress .muse-stepicon { background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 28%, var(--dsw-alias-bg-layer-2, #222)); color: var(--dsw-alias-state-business-primary, #4a7dff); animation: muse-pulse 1.8s ease infinite; }
+.muse-steprow.is-in_progress .muse-steptitle { color: var(--dsw-alias-label-primary, #eee); font-weight: 600; }
+.muse-steprow.is-failed .muse-stepicon { background: color-mix(in srgb, var(--dsw-alias-state-error-primary, #f66) 22%, var(--dsw-alias-bg-layer-2, #222)); color: var(--dsw-alias-state-error-primary, #f66); }
+.muse-steprow.is-failed .muse-steptitle { color: var(--dsw-alias-state-error-primary, #f66); }
+.muse-steprow.is-skipped .muse-stepicon { opacity: .45; }
+.muse-steprow.is-skipped .muse-steptitle { opacity: .55; text-decoration: line-through; }
+/* \u8B66\u544A\u6761 */
+.muse-alert { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 8px; font-weight: 600; animation: muse-breathe 2.2s ease infinite; }
+.muse-alert.is-warn { color: var(--dsw-alias-state-warn-label, #d90); background: color-mix(in srgb, var(--dsw-alias-state-warn-label, #d90) 12%, transparent); }
+.muse-alert.is-fail { color: var(--dsw-alias-state-error-primary, #f66); background: color-mix(in srgb, var(--dsw-alias-state-error-primary, #f66) 12%, transparent); animation: none; }
+/* ============ \u9996\u5C4F\uFF1A\u4EA4\u4ED8\u7269\u5361 ============ */
+.muse-card { border: 1px solid var(--dsw-alias-border-l2, #303030); border-radius: 12px; background: var(--dsw-alias-bg-layer-1, #1d1d1d); padding: 12px 14px; }
+.muse-card h4 { margin: 0 0 10px; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--dsw-alias-label-caption, #8a8a8a); display: flex; align-items: center; gap: 7px; }
+.muse-card h4 .muse-count { margin-left: auto; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--dsw-alias-label-dimmed, #777); }
+.muse-deliver-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.muse-deliver-head h4 { margin: 0; flex: 1; }
+.muse-seal { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px; flex: none; }
+.muse-seal.is-ok { color: var(--dsw-alias-state-success-primary, #5cb85c); background: color-mix(in srgb, var(--dsw-alias-state-success-primary, #5cb85c) 13%, transparent); }
+.muse-seal.is-wait { color: var(--dsw-alias-state-warn-label, #d90); background: color-mix(in srgb, var(--dsw-alias-state-warn-label, #d90) 11%, transparent); }
+.muse-artifacts { display: flex; flex-wrap: wrap; gap: 6px; }
+.muse-artifact { display: flex; gap: 6px; align-items: center; padding: 4px 10px; border-radius: 8px; background: var(--dsw-alias-bg-layer-2, #232323); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+.muse-artifact .muse-art-check { color: var(--dsw-alias-state-success-primary, #5cb85c); font-weight: 700; }
+.muse-artifact .muse-art-pending { color: var(--dsw-alias-label-dimmed, #888); }
+/* ============ \u9996\u5C4F\uFF1A\u6700\u65B0\u52A8\u6001\u4E00\u884C ============ */
+.muse-latest { display: flex; align-items: center; gap: 9px; padding: 9px 14px; border-radius: 12px; border: 1px solid var(--dsw-alias-border-l2, #303030); background: var(--dsw-alias-bg-layer-1, #1d1d1d); font-size: 12px; }
+.muse-latest .muse-latest-ico { flex: none; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10.5px; background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 17%, transparent); }
+.muse-latest.is-write .muse-latest-ico { background: color-mix(in srgb, var(--dsw-alias-state-warn-label, #d90) 17%, transparent); }
+.muse-latest .muse-latest-label { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dsw-alias-label-secondary, #bbb); }
+.muse-latest.is-denied .muse-latest-label { color: var(--dsw-alias-state-error-primary, #f66); }
+.muse-latest .muse-latest-k { flex: none; color: var(--dsw-alias-label-dimmed, #888); font-size: 11px; }
+/* ============ \u6280\u672F\u7EC6\u8282\uFF08\u70B9\u51FB\u5C55\u5F00\uFF09 ============ */
+details.muse-tech { border: 1px solid var(--dsw-alias-border-l2, #303030); border-radius: 12px; background: var(--dsw-alias-bg-layer-1, #1d1d1d); }
+details.muse-tech > summary { cursor: pointer; list-style: none; padding: 11px 14px; font-size: 12px; font-weight: 600; color: var(--dsw-alias-label-caption, #8a8a8a); display: flex; align-items: center; gap: 8px; border-radius: 12px; user-select: none; }
+details.muse-tech > summary::-webkit-details-marker { display: none; }
+details.muse-tech > summary::before { content: "\u25B8"; display: inline-block; transition: transform .18s ease; color: var(--dsw-alias-label-dimmed, #777); }
+details.muse-tech[open] > summary::before { transform: rotate(90deg); }
+details.muse-tech > summary:hover { color: var(--dsw-alias-label-primary, #eee); }
+details.muse-tech .muse-tech-body { display: flex; flex-direction: column; gap: 12px; padding: 2px 14px 14px; }
+details.muse-tech .muse-card { background: var(--dsw-alias-bg-layer-2, #232323); }
+/* \u7EDF\u8BA1\u80F6\u56CA */
 .muse-pills { display: flex; flex-wrap: wrap; gap: 8px; }
 .muse-pill { display: flex; align-items: center; gap: 7px; padding: 5px 12px 5px 6px; border-radius: 999px; background: var(--dsw-alias-bg-layer-1, #1d1d1d); border: 1px solid var(--dsw-alias-border-l2, #303030); }
 .muse-pill .muse-ico { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; background: color-mix(in srgb, currentColor 16%, transparent); }
@@ -193,13 +287,7 @@ var CSS = `
 .muse-pill.is-green { color: var(--dsw-alias-state-success-primary, #5cb85c); }
 .muse-pill.is-red { color: var(--dsw-alias-state-error-primary, #f66); }
 .muse-pill.is-red b, .muse-pill.is-green b, .muse-pill.is-blue b, .muse-pill.is-amber b { color: var(--dsw-alias-label-primary, #eee); }
-/* cards */
-.muse-card { border: 1px solid var(--dsw-alias-border-l2, #303030); border-radius: 12px; background: var(--dsw-alias-bg-layer-1, #1d1d1d); padding: 12px 14px; }
-.muse-card h4 { margin: 0 0 10px; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--dsw-alias-label-caption, #8a8a8a); display: flex; align-items: center; gap: 7px; }
-.muse-card h4 .muse-count { margin-left: auto; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--dsw-alias-label-dimmed, #777); }
-.muse-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 12px; }
-@media (max-width: 900px) { .muse-grid { grid-template-columns: 1fr; } }
-/* journey milestones */
+/* \u91CC\u7A0B\u7891\u8F68\u9053\uFF08\u6280\u672F\u533A\u5185\uFF09 */
 .muse-track { position: relative; display: flex; justify-content: space-between; margin: 6px 10px 2px; }
 .muse-track::before { content: ""; position: absolute; top: 13px; left: 24px; right: 24px; height: 3px; border-radius: 2px; background: var(--dsw-alias-bg-layer-2, #2c2c2c); }
 .muse-track .muse-fill { position: absolute; top: 13px; left: 24px; height: 3px; border-radius: 2px; background: var(--dsw-alias-state-success-primary, #5cb85c); transition: width .5s ease; max-width: calc(100% - 48px); }
@@ -208,31 +296,13 @@ var CSS = `
 .muse-mile { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; width: 72px; }
 .muse-mile .muse-dot { width: 27px; height: 27px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; background: var(--dsw-alias-bg-layer-2, #2c2c2c); border: 2px solid transparent; color: var(--dsw-alias-label-dimmed, #666); }
 .muse-mile.is-reached .muse-dot { background: color-mix(in srgb, var(--dsw-alias-state-success-primary, #5cb85c) 22%, var(--dsw-alias-bg-layer-2, #222)); color: var(--dsw-alias-state-success-primary, #5cb85c); }
-.muse-mile.is-current .muse-dot { background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 26%, var(--dsw-alias-bg-layer-2, #222)); color: #fff; border-color: var(--dsw-alias-state-business-primary, #4a7dff); animation: muse-pulse 1.8s ease infinite; color: var(--dsw-alias-state-business-primary, #4a7dff); }
+.muse-mile.is-current .muse-dot { background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 26%, var(--dsw-alias-bg-layer-2, #222)); border-color: var(--dsw-alias-state-business-primary, #4a7dff); animation: muse-pulse 1.8s ease infinite; color: var(--dsw-alias-state-business-primary, #4a7dff); }
 .muse-track.is-warn .muse-mile.is-current .muse-dot { border-color: var(--dsw-alias-state-warn-label, #d90); background: color-mix(in srgb, var(--dsw-alias-state-warn-label, #d90) 26%, var(--dsw-alias-bg-layer-2, #222)); color: var(--dsw-alias-state-warn-label, #d90); }
 .muse-track.is-fail .muse-mile.is-current .muse-dot { border-color: var(--dsw-alias-state-error-primary, #f66); background: color-mix(in srgb, var(--dsw-alias-state-error-primary, #f66) 26%, var(--dsw-alias-bg-layer-2, #222)); color: var(--dsw-alias-state-error-primary, #f66); animation: none; }
 .muse-mile span { font-size: 11px; color: var(--dsw-alias-label-tertiary, #8f8f8f); }
 .muse-mile.is-reached span, .muse-mile.is-current span { color: var(--dsw-alias-label-primary, #eee); font-weight: 600; }
-/* alert banner */
-.muse-alert { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 6px 12px; border-radius: 8px; font-weight: 600; animation: muse-breathe 2.2s ease infinite; }
-.muse-alert.is-warn { color: var(--dsw-alias-state-warn-label, #d90); background: color-mix(in srgb, var(--dsw-alias-state-warn-label, #d90) 12%, transparent); }
-.muse-alert.is-fail { color: var(--dsw-alias-state-error-primary, #f66); background: color-mix(in srgb, var(--dsw-alias-state-error-primary, #f66) 12%, transparent); animation: none; }
-/* objective */
-.muse-objective { margin: 10px 0 0; line-height: 1.55; }
-.muse-objective .muse-k { color: var(--dsw-alias-label-caption, #8a8a8a); margin-right: 6px; }
-.muse-note { color: var(--dsw-alias-label-dimmed, #888); font-size: 11.5px; line-height: 1.5; }
-/* steps chain */
-.muse-steps { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; margin-top: 4px; }
-.muse-stepdot { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 52px; }
-.muse-stepdot i { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-style: normal; background: var(--dsw-alias-bg-layer-2, #2c2c2c); color: var(--dsw-alias-label-dimmed, #666); }
-.muse-stepdot.is-done i { background: color-mix(in srgb, var(--dsw-alias-state-success-primary, #5cb85c) 22%, var(--dsw-alias-bg-layer-2, #222)); color: var(--dsw-alias-state-success-primary, #5cb85c); }
-.muse-stepdot.is-in_progress i { background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 30%, var(--dsw-alias-bg-layer-2, #222)); color: #fff; animation: muse-pulse 1.8s ease infinite; }
-.muse-stepdot.is-failed i { background: color-mix(in srgb, var(--dsw-alias-state-error-primary, #f66) 24%, var(--dsw-alias-bg-layer-2, #222)); color: var(--dsw-alias-state-error-primary, #f66); }
-.muse-stepdot.is-skipped i { opacity: .45; text-decoration: line-through; }
-.muse-stepdot em { font-style: normal; font-size: 10px; color: var(--dsw-alias-label-dimmed, #777); max-width: 52px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
-.muse-step-link { width: 18px; height: 2px; margin-bottom: 16px; background: var(--dsw-alias-bg-layer-2, #333); flex: none; }
-/* budget gauges */
-.muse-budget { display: flex; align-items: center; gap: 18px; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--dsw-alias-border-l2, #303030); }
+/* \u9884\u7B97\u4EEA\u8868 */
+.muse-budget { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
 .muse-gauge { display: flex; align-items: center; gap: 9px; }
 .muse-gauge svg { display: block; }
 .muse-gauge .muse-gauge-text { display: flex; flex-direction: column; gap: 1px; }
@@ -240,24 +310,27 @@ var CSS = `
 .muse-gauge .muse-gauge-text span { font-size: 10.5px; color: var(--dsw-alias-label-dimmed, #888); }
 .muse-gauge.is-warn circle.val { stroke: var(--dsw-alias-state-warn-label, #d90); }
 .muse-gauge.is-over circle.val { stroke: var(--dsw-alias-state-error-primary, #f66); }
-/* pipeline entries */
+/* \u7F51\u683C */
+.muse-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 12px; }
+@media (max-width: 900px) { .muse-grid { grid-template-columns: 1fr; } }
+/* \u6D41\u6C34\u7EBF */
 .muse-lines { display: flex; flex-direction: column; gap: 7px; }
-.muse-eff { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 9px; background: var(--dsw-alias-bg-layer-2, #232323); }
-.muse-eff.is-denied { background: color-mix(in srgb, var(--dsw-alias-state-error-primary, #f66) 10%, var(--dsw-alias-bg-layer-2, #232323)); }
+.muse-eff { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 9px; background: var(--dsw-alias-bg-layer-1, #1d1d1d); }
+details.muse-tech .muse-eff, details.muse-tech .muse-evi { background: var(--dsw-alias-bg-layer-1, #1d1d1d); }
+.muse-eff.is-denied { background: color-mix(in srgb, var(--dsw-alias-state-error-primary, #f66) 10%, var(--dsw-alias-bg-layer-1, #1d1d1d)); }
 .muse-eff .muse-ico { width: 26px; height: 26px; border-radius: 8px; flex: none; display: flex; align-items: center; justify-content: center; font-size: 13px; background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 15%, transparent); }
 .muse-eff .muse-eff-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .muse-eff .muse-eff-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; }
 .muse-eff .muse-eff-sub { display: flex; gap: 6px; align-items: center; font-size: 10px; color: var(--dsw-alias-label-dimmed, #777); }
 .muse-eff .muse-eff-sub .muse-origin { border: 1px solid var(--dsw-alias-border-l2, #363636); border-radius: 6px; padding: 0 5px; }
-/* station mini-track */
 .muse-stations { position: relative; display: flex; gap: 10px; align-items: center; flex: none; }
-.muse-stations i { width: 9px; height: 9px; border-radius: 50%; background: var(--dsw-alias-bg-layer-1, #3a3a3a); border: 1px solid var(--dsw-alias-border-l2, #444); }
+.muse-stations i { width: 9px; height: 9px; border-radius: 50%; background: var(--dsw-alias-bg-layer-2, #3a3a3a); border: 1px solid var(--dsw-alias-border-l2, #444); }
 .muse-stations i.on-amber { background: var(--dsw-alias-state-warn-label, #d90); border-color: transparent; }
 .muse-stations i.on-green { background: var(--dsw-alias-state-success-primary, #5cb85c); border-color: transparent; }
 .muse-stations i.on-blue { background: var(--dsw-alias-state-business-primary, #4a7dff); border-color: transparent; animation: muse-breathe 1.4s ease infinite; }
 .muse-stations i.on-red { background: var(--dsw-alias-state-error-primary, #f66); border-color: transparent; }
-/* evidence wall */
-.muse-evi { display: flex; gap: 9px; align-items: flex-start; padding: 7px 9px; border-radius: 9px; background: var(--dsw-alias-bg-layer-2, #232323); }
+/* \u8BC1\u636E\u5899 */
+.muse-evi { display: flex; gap: 9px; align-items: flex-start; padding: 7px 9px; border-radius: 9px; background: var(--dsw-alias-bg-layer-1, #1d1d1d); }
 .muse-evi .muse-ico { width: 26px; height: 26px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; font-size: 12px; }
 .muse-evi.is-trusted .muse-ico { background: color-mix(in srgb, var(--dsw-alias-state-success-primary, #5cb85c) 16%, transparent); }
 .muse-evi.is-untrusted .muse-ico { background: color-mix(in srgb, var(--dsw-alias-state-warn-label, #d90) 16%, transparent); }
@@ -269,24 +342,16 @@ var CSS = `
 .muse-tag.is-amber { color: var(--dsw-alias-state-warn-label, #d90); background: color-mix(in srgb, var(--dsw-alias-state-warn-label, #d90) 13%, transparent); }
 .muse-tag.is-red { color: var(--dsw-alias-state-error-primary, #f66); background: color-mix(in srgb, var(--dsw-alias-state-error-primary, #f66) 13%, transparent); }
 .muse-tag.is-blue { color: var(--dsw-alias-state-business-primary, #4a7dff); background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 13%, transparent); }
-.muse-tag.is-dim { color: var(--dsw-alias-label-dimmed, #888); background: var(--dsw-alias-bg-layer-1, #2a2a2a); }
-.muse-hash { font-family: ui-monospace, monospace; font-size: 9.5px; color: var(--dsw-alias-label-dimmed, #666); }
-/* delivery seal */
-.muse-delivery { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
-.muse-seal { width: 54px; height: 54px; border-radius: 50%; flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 22px; }
-.muse-seal.is-ok { background: color-mix(in srgb, var(--dsw-alias-state-success-primary, #5cb85c) 16%, transparent); color: var(--dsw-alias-state-success-primary, #5cb85c); box-shadow: 0 0 0 4px color-mix(in srgb, var(--dsw-alias-state-success-primary, #5cb85c) 8%, transparent); }
-.muse-seal.is-wait { background: color-mix(in srgb, var(--dsw-alias-state-warn-label, #d90) 14%, transparent); color: var(--dsw-alias-state-warn-label, #d90); }
-.muse-seal small { font-size: 8.5px; font-weight: 600; letter-spacing: .03em; }
-.muse-deliver-right { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
-.muse-artifacts { display: flex; flex-wrap: wrap; gap: 6px; }
-.muse-artifact { display: flex; gap: 5px; align-items: center; padding: 3px 9px; border-radius: 7px; background: var(--dsw-alias-bg-layer-2, #232323); font-family: ui-monospace, monospace; font-size: 10.5px; }
+.muse-tag.is-dim { color: var(--dsw-alias-label-dimmed, #888); background: var(--dsw-alias-bg-layer-2, #2a2a2a); }
+.muse-hash { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9.5px; color: var(--dsw-alias-label-dimmed, #666); }
+.muse-note { color: var(--dsw-alias-label-dimmed, #888); font-size: 11.5px; line-height: 1.5; margin: 0; }
+/* \u8BC4\u6D4B\u74E6\u7247 */
 .muse-eval { display: flex; gap: 8px; flex-wrap: wrap; }
-.muse-tile { display: flex; flex-direction: column; gap: 1px; padding: 5px 11px; border-radius: 8px; background: var(--dsw-alias-bg-layer-2, #232323); }
+.muse-tile { display: flex; flex-direction: column; gap: 1px; padding: 5px 11px; border-radius: 8px; background: var(--dsw-alias-bg-layer-1, #1d1d1d); }
 .muse-tile b { font-size: 13px; font-variant-numeric: tabular-nums; }
 .muse-tile span { font-size: 10px; color: var(--dsw-alias-label-dimmed, #888); }
-/* feed timeline */
-.muse-feed { flex: 1; min-height: 110px; display: flex; flex-direction: column; }
-.muse-feed .muse-lines { flex: 1; overflow-y: auto; gap: 5px; }
+/* \u52A8\u6001 feed */
+.muse-feed .muse-lines { max-height: 220px; overflow-y: auto; gap: 5px; }
 .muse-feed-row { display: flex; gap: 9px; align-items: center; min-width: 0; }
 .muse-feed-row .muse-ico { width: 22px; height: 22px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; font-size: 10.5px; }
 .muse-feed-row.is-muse .muse-ico { background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 17%, transparent); }
@@ -294,7 +359,7 @@ var CSS = `
 .muse-feed-row .muse-feed-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: var(--dsw-alias-label-secondary, #bbb); }
 .muse-feed-row.is-denied .muse-feed-label { color: var(--dsw-alias-state-error-primary, #f66); }
 .muse-feed-row .muse-loc { flex: none; font-size: 9.5px; color: var(--dsw-alias-label-dimmed, #5f5f5f); font-variant-numeric: tabular-nums; }
-/* empty state */
+/* \u7A7A\u6001 */
 .muse-empty { margin: auto; max-width: 430px; text-align: center; color: var(--dsw-alias-label-tertiary, #999); display: flex; flex-direction: column; gap: 10px; align-items: center; }
 .muse-empty h3 { margin: 0; font-size: 13.5px; font-weight: 600; color: var(--dsw-alias-label-secondary, #bbb); }
 .muse-empty p { margin: 0; line-height: 1.65; }
@@ -335,6 +400,22 @@ function journey(status, hasVerification) {
       return { reach: 0, current: 0, tone: "ok" };
   }
 }
+function statusTone(status) {
+  switch (status) {
+    case "active":
+      return "is-blue";
+    case "done":
+      return "is-green";
+    case "waiting_approval":
+    case "blocked":
+      return "is-amber";
+    case "failed":
+    case "cancelled":
+      return "is-red";
+    default:
+      return "is-dim";
+  }
+}
 function stations(status) {
   switch (status) {
     case "proposed":
@@ -368,6 +449,80 @@ function shortPath(path) {
 function tx(t, key, fallback) {
   const value = t(key);
   return value === void 0 || value === null || value === key ? fallback : value;
+}
+function HeroCard({ unit, t }) {
+  if (unit == null) {
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { className: "muse-hero", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "muse-hero-top", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "muse-status is-dim", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { className: "muse-status-dot" }),
+        t("hero.status.none")
+      ] }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "muse-note", children: t("journey.none") })
+    ] });
+  }
+  const status = unit.status ?? "draft";
+  const tone = statusTone(status);
+  const steps = unit.steps ?? [];
+  const done = steps.filter((s) => s.status === "done").length;
+  const trip = journey(status, unit.verification != null);
+  const pct = steps.length > 0 ? Math.round(done / steps.length * 100) : status === "done" ? 100 : Math.round(trip.reach / 3 * 100);
+  const progressTone = trip.tone === "fail" ? "is-fail" : trip.tone === "warn" ? "is-warn" : status === "done" ? "is-done" : "";
+  const alertKey = trip.tone === "warn" ? `journey.alert.${status}` : trip.tone === "fail" ? `journey.${status}` : null;
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { className: "muse-hero", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-hero-top", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: `muse-status ${tone}`, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { className: "muse-status-dot" }),
+        tx(t, `hero.status.${status}`, status)
+      ] }),
+      (unit.constraints?.length ?? 0) > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "muse-note", title: unit.constraints.join("\n"), children: [
+        "\u{1F4CE} ",
+        t("journey.constraints"),
+        " \xD7 ",
+        unit.constraints.length
+      ] })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "muse-hero-objective", title: unit.objective, children: unit.objective ?? "\u2014" }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: `muse-progress${progressTone ? ` ${progressTone}` : ""}`, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "muse-progress-track", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "muse-progress-fill", style: { width: `${pct}%` } }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "muse-progress-label", children: steps.length > 0 ? t("hero.progress", { done, total: steps.length, pct }) : `${pct}%` })
+    ] }),
+    alertKey != null && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: `muse-alert is-${trip.tone === "warn" ? "warn" : "fail"}`, children: [
+      trip.tone === "warn" ? "\u23F3" : "\u26D4",
+      " ",
+      t(alertKey)
+    ] }),
+    steps.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "muse-steplist", children: steps.map((step, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: `muse-steprow is-${step.status}`, title: step.note ?? void 0, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { className: "muse-stepicon", children: step.status === "pending" ? index + 1 : STEP_ICON[step.status] ?? "\xB7" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "muse-steptitle", children: step.title })
+    ] }, step.id ?? index)) })
+  ] });
+}
+function ArtifactsCard({ unit, t }) {
+  const verified = unit?.verification != null;
+  const artifacts = unit?.artifacts ?? [];
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { className: "muse-card", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-deliver-head", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h4", { children: [
+        "\u{1F4E6} ",
+        t("delivery.artifacts")
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: `muse-seal ${verified ? "is-ok" : "is-wait"}`, children: verified ? `\u2713 ${t("delivery.verified")}` : `\u2026 ${t("delivery.unverified")}` })
+    ] }),
+    artifacts.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "muse-note", children: t("artifacts.empty") }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "muse-artifacts", children: artifacts.map((artifact) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "muse-artifact", title: artifact.path, children: [
+      "\u{1F4C4} ",
+      shortPath(artifact.path),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: verified ? "muse-art-check" : "muse-art-pending", children: verified ? "\u2713" : "\u2026" })
+    ] }, artifact.id ?? artifact.path)) })
+  ] });
+}
+function LatestRow({ activity, t }) {
+  const latest = activity.length > 0 ? activity[activity.length - 1] : null;
+  if (latest == null) return null;
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: `muse-latest is-${latest.kind}${latest.status === "denied" ? " is-denied" : ""}`, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "muse-latest-ico", children: latest.kind === "muse" ? "\u25CE" : "\u270E" }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "muse-latest-k", children: t("latest.prefix") }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "muse-latest-label", children: latest.label })
+  ] });
 }
 function StatPills({ muse, t }) {
   const stats = muse.stats ?? {};
@@ -412,26 +567,15 @@ function Gauge({ ratio, tone, value, label }) {
     ] })
   ] });
 }
-function JourneyCard({ unit, t }) {
-  if (unit == null) {
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { className: "muse-card", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h4", { children: [
-        "\u{1F9ED} ",
-        t("journey.title")
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "muse-note", children: t("journey.none") })
-    ] });
-  }
-  const hasVerification = unit.verification != null;
-  const trip = journey(unit.status, hasVerification);
+function JourneyTechCard({ unit, t }) {
+  if (unit == null) return null;
+  const trip = journey(unit.status, unit.verification != null);
   const milestones = ["draft", "active", "verify", "done"];
   const fillPercent = trip.current === null ? 100 : trip.current / (milestones.length - 1) * 100;
   const budget = unit.budget ?? {};
   const tokenRatio = budget.maxTokens ? (budget.spentTokens ?? 0) / budget.maxTokens : 0;
   const failureRatio = budget.maxFailures ? (budget.failures ?? 0) / budget.maxFailures : 0;
   const roundRatio = budget.maxRounds ? (budget.roundsUsed ?? 0) / budget.maxRounds : 0;
-  const alertKey = trip.tone === "warn" ? `journey.alert.${unit.status}` : trip.tone === "fail" ? `journey.${unit.status}` : null;
-  const steps = unit.steps ?? [];
   return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { className: "muse-card", children: [
     /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h4", { children: [
       "\u{1F9ED} ",
@@ -452,32 +596,7 @@ function JourneyCard({ unit, t }) {
         ] }, key);
       })
     ] }),
-    alertKey != null && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: `muse-alert is-${trip.tone === "warn" ? "warn" : "fail"}`, children: [
-      trip.tone === "warn" ? "\u23F3" : "\u26D4",
-      " ",
-      t(alertKey)
-    ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { className: "muse-objective", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "muse-k", children: [
-        "\u{1F4CC} ",
-        t("journey.objective")
-      ] }),
-      unit.objective ?? "\u2014"
-    ] }),
-    (unit.constraints?.length ?? 0) > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { className: "muse-note", children: [
-      "\u{1F4CE} ",
-      t("journey.constraints"),
-      ": ",
-      unit.constraints.join(" \xB7 ")
-    ] }),
-    steps.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "muse-steps", children: steps.map((step, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { display: "contents" }, children: [
-      index > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "muse-step-link" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: `muse-stepdot is-${step.status}`, title: `${step.title}${step.note ? ` \u2014 ${step.note}` : ""}`, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { children: STEP_ICON[step.status] ?? "\xB7" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("em", { children: step.title })
-      ] })
-    ] }, step.id)) }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-budget", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-budget", style: { marginTop: 12 }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
         Gauge,
         {
@@ -571,48 +690,33 @@ function EvidenceWall({ evidence, t, now }) {
     }) })
   ] });
 }
-function DeliveryCard({ unit, evaluation, t }) {
-  const verified = unit?.verification != null;
+function EvalCard({ evaluation, t }) {
   const summary = evaluation?.summary;
   return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { className: "muse-card", children: [
     /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h4", { children: [
-      "\u{1F4E6} ",
-      t("delivery.title")
+      "\u{1F4CA} ",
+      t("eval.title")
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-delivery", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: `muse-seal ${verified ? "is-ok" : "is-wait"}`, children: [
-        verified ? "\u2713" : "\uFF1F",
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: verified ? t("delivery.verified") : t("delivery.unverified") })
+    summary != null ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-eval", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "muse-tile", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("b", { children: [
+          (100 * (summary.verifiedSuccessRate ?? 0)).toFixed(0),
+          "%"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: t("delivery.eval.verified") })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-deliver-right", children: [
-        (unit?.artifacts ?? []).length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "muse-artifacts", children: unit.artifacts.map((artifact) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "muse-artifact", title: artifact.path, children: [
-          "\u{1F4C4} ",
-          shortPath(artifact.path),
-          " ",
-          verified ? "\u2713" : "\u2026"
-        ] }, artifact.id ?? artifact.path)) }),
-        summary != null ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-eval", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "muse-tile", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("b", { children: [
-              (100 * (summary.verifiedSuccessRate ?? 0)).toFixed(0),
-              "%"
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: t("delivery.eval.verified") })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "muse-tile", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("b", { children: [
-              (100 * (summary.duplicateSideEffectRate ?? 0)).toFixed(1),
-              "%"
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: t("delivery.eval.duplicates") })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "muse-tile", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: formatTokens(summary.totalTokens) }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: t("delivery.eval.tokens") })
-          ] })
-        ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "muse-note", children: t("delivery.noEval") })
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "muse-tile", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("b", { children: [
+          (100 * (summary.duplicateSideEffectRate ?? 0)).toFixed(1),
+          "%"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: t("delivery.eval.duplicates") })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "muse-tile", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: formatTokens(summary.totalTokens) }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: t("delivery.eval.tokens") })
       ] })
-    ] })
+    ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "muse-note", children: t("delivery.noEval") })
   ] });
 }
 function Feed({ activity, t }) {
@@ -638,6 +742,25 @@ function Feed({ activity, t }) {
     ] }, row.seq)) })
   ] });
 }
+function TechDetails({ muse, t, now }) {
+  const unit = muse.workunit ?? null;
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", { className: "muse-tech", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("summary", { children: [
+      "\u{1F527} ",
+      t("tech.toggle")
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-tech-body", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(StatPills, { muse, t }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(JourneyTechCard, { unit, t }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-grid", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PipelineCard, { effects: muse.effects ?? [], t }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EvidenceWall, { evidence: muse.evidence ?? [], t, now })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EvalCard, { evaluation: muse.eval, t }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Feed, { activity: muse.activity ?? [], t })
+    ] })
+  ] });
+}
 function MuseView({ useProjection, t }) {
   const muse = useProjection?.("muse");
   const [now, setNow] = (0, import_react.useState)(() => Date.now());
@@ -658,14 +781,10 @@ function MuseView({ useProjection, t }) {
     ] }) });
   }
   return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-view", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(StatPills, { muse, t }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(JourneyCard, { unit: muse.workunit, t }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-grid", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PipelineCard, { effects: muse.effects ?? [], t }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EvidenceWall, { evidence: muse.evidence ?? [], t, now })
-    ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DeliveryCard, { unit: muse.workunit, evaluation: muse.eval, t }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Feed, { activity: muse.activity ?? [], t })
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(HeroCard, { unit: muse.workunit, t }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ArtifactsCard, { unit: muse.workunit, t }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LatestRow, { activity: muse.activity ?? [], t }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TechDetails, { muse, t, now })
   ] });
 }
 function apply(ctx) {

@@ -1,6 +1,6 @@
 {
   "name": "dsh-eval",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Three-layer evaluation for the DeepSeek Harness (result / trajectory / component) with Muse failure taxonomy and per-successful-task cost accounting, computed over WorkUnits, the effect ledger and durable session logs.",
   "type": "module",

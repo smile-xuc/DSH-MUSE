@@ -125,6 +125,21 @@ function isErrorResult(message, error) {
   return message?.content?.[0]?.isError === true;
 }
 
+/* Session logs persist the RENDERED tool text, not the structured value —
+ * so every muse plugin appends a compact `<!--muse:<tool> {json}-->` trailer
+ * to its render. Parse that envelope first; fall back to a bare-JSON body
+ * for sessions recorded before the trailer existed. */
+const TRAILER_RE = /<!--muse:(\w+) (\{[\s\S]*?\})-->/;
+
+function payloadFrom(text) {
+  const match = TRAILER_RE.exec(text);
+  if (match !== null) {
+    const trailer = parseJson(match[2]);
+    if (trailer !== null) return trailer;
+  }
+  return parseJson(text);
+}
+
 function truncate(text, max) {
   const value = String(text ?? '');
   return value.length <= max ? value : `${value.slice(0, max - 1)}…`;
@@ -349,7 +364,7 @@ export function apply(ctx) {
           const failed = isErrorResult(data.message, data.error);
           const text = resultText(data.message);
           const denied = failed && /duplicate side effect|already executed|guardrails:/.test(text);
-          const payload = parseJson(text);
+          const payload = payloadFrom(text);
 
           let next = { ...state, pending: restPending };
           if (call.name === 'workunit') next = applyWorkunitResult(next, payload);

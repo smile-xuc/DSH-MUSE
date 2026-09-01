@@ -1,6 +1,6 @@
 {
   "name": "dsh-evidence",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Context evidence chain for the DeepSeek Harness: every piece of context entering a task carries source, time, owner, permission scope, content hash and citation spans — knowledge is a traceable supply chain, not a retrieved blob.",
   "type": "module",

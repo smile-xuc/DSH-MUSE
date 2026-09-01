@@ -225,6 +225,15 @@ Ops:
 
 When a WorkUnit is active, registered evidence links to it automatically.`;
 
+
+/** Machine-readable trailer appended to every render: session logs carry
+ *  only the RENDERED text, so the Muse 工作台 bridge parses this compact
+ *  JSON envelope instead of scraping prose. `-->` inside strings is escaped
+ *  as \u003e (valid JSON, restores exactly on parse). */
+function museTrailer(tool, value) {
+  return `\n\n<!--muse:${tool} ${JSON.stringify(value).replace(/-->/g, '--\\u003e')}-->`;
+}
+
 const OUTPUT = {
   schema: {
     type: 'object',
@@ -239,14 +248,14 @@ const OUTPUT = {
   },
   render: (_args, value) => [{
     type: 'text',
-    text: value.ok
+    text: (value.ok
       ? (value.item
         ? `Evidence ${value.item.id} [${value.item.trust}] ${value.item.source}${value.fresh === false ? ' (unchanged, already registered)' : ''}`
         : [
             `${value.items?.length ?? 0} evidence item(s):`,
             ...(value.items ?? []).map((i) => `- ${i.id} [${i.kind}/${i.trust}] ${i.source.slice(0, 80)} — ${i.claim.slice(0, 60)}`),
           ].join('\n'))
-      : `evidence op failed: ${value.error ?? 'unknown error'}`,
+      : `evidence op failed: ${value.error ?? 'unknown error'}`) + museTrailer('evidence', value),
   }],
 };
 
