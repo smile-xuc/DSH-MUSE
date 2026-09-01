@@ -307,9 +307,15 @@ export function apply(ctx, config) {
       };
     }
 
+    /* allowRepeat effects (e.g. routine git push) must not reuse the semantic
+     * key for propose(): the ledger rightly refuses to re-propose an
+     * 'executed' entry. Each execution gets its own suffixed entry instead —
+     * one ledger row per real execution, which is the better audit trail. */
+    const ledgerKey = effect.allowRepeat === true ? `${key}#${Date.now()}` : key;
+
     const workunitId = await ctx.workunits?.currentId(sessionId);
     const { entry, fresh } = await ledger.propose({
-      idempotencyKey: key,
+      idempotencyKey: ledgerKey,
       sessionId,
       ...(workunitId !== undefined ? { workunitId } : {}),
       tool: exec.name,
@@ -334,20 +340,20 @@ export function apply(ctx, config) {
         outcome = 'unavailable';
       }
       if (outcome === 'allowed-once') {
-        await ledger.approve(key, { who: 'user', scope: effect.rule });
+        await ledger.approve(ledgerKey, { who: 'user', scope: effect.rule });
         return next();
       }
       if (outcome === 'unavailable' && config.askFallback === 'auto') {
-        await ledger.approve(key, { who: 'auto:ask-fallback', scope: effect.rule });
+        await ledger.approve(ledgerKey, { who: 'auto:ask-fallback', scope: effect.rule });
         return next();
       }
       return {
         kind: 'deny',
-        reason: `guardrails: '${effect.summary}' requires human approval (rule '${effect.rule}') and approval was ${outcome}. Ledger entry '${key}' records this rejected attempt (check it with effect op=check).`,
+        reason: `guardrails: '${effect.summary}' requires human approval (rule '${effect.rule}') and approval was ${outcome}. Ledger entry '${ledgerKey}' records this rejected attempt (check it with effect op=check).`,
       };
     }
 
-    await ledger.approve(key, { who: 'auto:policy', scope: effect.rule });
+    await ledger.approve(ledgerKey, { who: 'auto:policy', scope: effect.rule });
     return next();
   });
 
@@ -360,11 +366,28 @@ export function apply(ctx, config) {
         const ledger = ctx.effectLedger;
         if (ledger === undefined) return;
         const key = effectKey(exec, effect);
-        const stored = await ledger.get(key);
+        let ledgerKey = key;
+        if (effect.allowRepeat === true) {
+          /* pre-execute ledgered this call under a unique `${key}#<ts>` entry;
+           * find the newest still-open one and close it. */
+          /* list() is newest-first (createdAt desc): the first still-open
+           * suffixed entry is the one this result belongs to. */
+          let pendingKey = null;
+          for (const entry of await ledger.list()) {
+            const candidate = entry.idempotencyKey;
+            if (typeof candidate !== 'string' || !candidate.startsWith(`${key}#`)) continue;
+            if (entry.status !== 'proposed' && entry.status !== 'approved') continue;
+            pendingKey = candidate;
+            break;
+          }
+          if (pendingKey === null) return;
+          ledgerKey = pendingKey;
+        }
+        const stored = await ledger.get(ledgerKey);
         if (stored === undefined || stored.status === 'executed' || stored.status === 'rolled_back') return;
         const isError = result?.isError === true;
         const note = typeof result?.error?.message === 'string' ? truncate(result.error.message, 200) : undefined;
-        await ledger.markExecuted(key, { ok: !isError, ...(note !== undefined ? { note } : {}) });
+        await ledger.markExecuted(ledgerKey, { ok: !isError, ...(note !== undefined ? { note } : {}) });
       } catch {
         /* observation must never break the tool pipeline */
       }
