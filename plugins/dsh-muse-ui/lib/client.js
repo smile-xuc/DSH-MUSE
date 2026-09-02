@@ -379,7 +379,7 @@ details.muse-tech .muse-eff, details.muse-tech .muse-evi { background: var(--dsw
 .muse-orbit b { position: absolute; inset: 33px; border-radius: 50%; background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 25%, transparent); animation: muse-breathe 2.4s ease infinite; }
 @keyframes muse-spin { to { transform: rotate(360deg); } }
 /* ============ \u4F1A\u8BDD\u5934\u90E8\u6A2A\u5411\u8FDB\u5EA6\u6761 ============ */
-.muse-bar { display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--dsw-alias-border-l2, #303030); background: var(--dsw-alias-bg-layer-1, #1d1d1d); cursor: pointer; font-family: inherit; font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--dsw-alias-label-secondary, #bbb); transition: border-color .15s ease, background .15s ease; }
+.muse-bar { order: -1; display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--dsw-alias-border-l2, #303030); background: var(--dsw-alias-bg-layer-1, #1d1d1d); cursor: pointer; font-family: inherit; font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--dsw-alias-label-secondary, #bbb); transition: border-color .15s ease, background .15s ease; }
 .muse-bar:hover { border-color: var(--dsw-alias-label-caption, #8a8a8a); background: var(--dsw-alias-interactive-bg-hover, #2a2a2a); }
 .muse-bar .muse-bar-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--dsw-alias-label-tertiary, #999); }
 .muse-bar .muse-bar-status { flex: none; }
@@ -862,10 +862,10 @@ function apply(ctx) {
     label: () => t("view.muse"),
     inject: () => ({})
   }, MuseView));
-  ctx.slots.inject("conversation.session.header.actions", () => ctx.slots.register({
-    name: "conversation.session.header.actions",
+  ctx.slots.inject("conversation.session.header.utilities", () => ctx.slots.register({
+    name: "conversation.session.header.utilities",
     id: "muse-workbench-bar",
-    order: 15,
+    order: 0,
     locale: NS,
     inject: () => ({ sessions: ctx.sessions })
   }, WorkbenchBar));
