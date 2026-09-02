@@ -1,6 +1,6 @@
 {
   "name": "dsh-muse-ui",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
   "description": "Muse 工作台 — a conversation view tab visualizing the Muse working style live: WorkUnit state machine, effect ledger, evidence chain, delivery verification and the muse tool-call feed. Data comes from the 'muse' session projection pushed by dsh-muse-bridge.",
   "type": "module",
