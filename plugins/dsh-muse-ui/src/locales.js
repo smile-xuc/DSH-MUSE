@@ -7,6 +7,7 @@ export const NS = 'muse';
 
 export const zh = {
   'view.muse': 'Muse 工作台',
+  'chip.progress': '{done}/{total} 步 · {pct}%',
   /* 首屏（人话层） */
   'hero.status.none': '未开始',
   'hero.status.draft': '已立项',
@@ -94,6 +95,7 @@ export const zh = {
 
 export const en = {
   'view.muse': 'Muse Studio',
+  'chip.progress': '{done}/{total} steps · {pct}%',
   'hero.status.none': 'Not started',
   'hero.status.draft': 'Planned',
   'hero.status.active': 'Working',

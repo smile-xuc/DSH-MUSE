@@ -35,6 +35,7 @@ var import_react = require("react");
 var NS = "muse";
 var zh = {
   "view.muse": "Muse \u5DE5\u4F5C\u53F0",
+  "chip.progress": "{done}/{total} \u6B65 \xB7 {pct}%",
   /* 首屏（人话层） */
   "hero.status.none": "\u672A\u5F00\u59CB",
   "hero.status.draft": "\u5DF2\u7ACB\u9879",
@@ -121,6 +122,7 @@ var zh = {
 };
 var en = {
   "view.muse": "Muse Studio",
+  "chip.progress": "{done}/{total} steps \xB7 {pct}%",
   "hero.status.none": "Not started",
   "hero.status.draft": "Planned",
   "hero.status.active": "Working",
@@ -370,6 +372,20 @@ details.muse-tech .muse-eff, details.muse-tech .muse-evi { background: var(--dsw
 .muse-orbit i:nth-child(3) { inset: 24px; animation-duration: 6s; }
 .muse-orbit b { position: absolute; inset: 33px; border-radius: 50%; background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 25%, transparent); animation: muse-breathe 2.4s ease infinite; }
 @keyframes muse-spin { to { transform: rotate(360deg); } }
+/* ============ \u4F1A\u8BDD\u5934\u90E8\u8FDB\u5EA6 chip ============ */
+.muse-chip { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 11px; border-radius: 999px; border: 1px solid var(--dsw-alias-border-l2, #303030); background: var(--dsw-alias-bg-layer-1, #1d1d1d); cursor: pointer; font-family: inherit; font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--dsw-alias-label-secondary, #bbb); transition: border-color .15s ease, background .15s ease; }
+.muse-chip:hover { border-color: var(--dsw-alias-label-caption, #8a8a8a); background: var(--dsw-alias-interactive-bg-hover, #2a2a2a); }
+.muse-chip .muse-chip-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--dsw-alias-label-tertiary, #999); }
+.muse-chip .muse-chip-label { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.muse-chip .muse-chip-bar { flex: none; width: 46px; height: 4px; border-radius: 2px; background: var(--dsw-alias-bg-layer-2, #2c2c2c); overflow: hidden; }
+.muse-chip .muse-chip-bar i { display: block; height: 100%; border-radius: 2px; background: var(--dsw-alias-state-business-primary, #4a7dff); transition: width .4s ease; }
+.muse-chip.is-blue .muse-chip-dot { background: var(--dsw-alias-state-business-primary, #4a7dff); animation: muse-breathe 1.6s ease infinite; }
+.muse-chip.is-green .muse-chip-dot { background: var(--dsw-alias-state-success-primary, #5cb85c); }
+.muse-chip.is-green .muse-chip-bar i { background: var(--dsw-alias-state-success-primary, #5cb85c); }
+.muse-chip.is-amber .muse-chip-dot { background: var(--dsw-alias-state-warn-label, #d90); animation: muse-breathe 2.2s ease infinite; }
+.muse-chip.is-amber .muse-chip-bar i { background: var(--dsw-alias-state-warn-label, #d90); }
+.muse-chip.is-red .muse-chip-dot { background: var(--dsw-alias-state-error-primary, #f66); }
+.muse-chip.is-red .muse-chip-bar i { background: var(--dsw-alias-state-error-primary, #f66); }
 `;
 function ensureStyles() {
   if (typeof document === "undefined") return;
@@ -787,6 +803,44 @@ function MuseView({ useProjection, t }) {
     /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TechDetails, { muse, t, now })
   ] });
 }
+var CHIP_NOOP_SUB = () => () => {
+};
+var CHIP_NO_SNAPSHOT = () => void 0;
+function WorkbenchChip({ sessionId, t, sessions }) {
+  const face = (0, import_react.useMemo)(() => {
+    const binding = sessions?.binding?.(sessionId);
+    return binding?.session?.projections?.faceOf?.("muse") ?? null;
+  }, [sessions, sessionId]);
+  const [subscribe, getSnapshot] = (0, import_react.useMemo)(
+    () => face === null ? [CHIP_NOOP_SUB, CHIP_NO_SNAPSHOT] : [(fn) => face.subscribe(fn), () => face.getSnapshot()],
+    [face]
+  );
+  const muse = (0, import_react.useSyncExternalStore)(subscribe, getSnapshot);
+  const unit = muse?.workunit ?? null;
+  if (unit == null) return null;
+  const steps = unit.steps ?? [];
+  const done = steps.filter((step) => step.status === "done").length;
+  const pct = steps.length > 0 ? Math.round(done / steps.length * 100) : unit.status === "done" ? 100 : 0;
+  const jump = () => {
+    const label = t("view.muse");
+    const tab = [...document.querySelectorAll('[role="tab"]')].find((el) => el.textContent.trim() === label);
+    tab?.click();
+  };
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+    "button",
+    {
+      type: "button",
+      className: `muse-chip ${statusTone(unit.status)}`,
+      onClick: jump,
+      title: `${t("view.muse")} \xB7 ${unit.objective ?? ""}`,
+      children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { className: "muse-chip-dot" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "muse-chip-label", children: steps.length > 0 ? t("chip.progress", { done, total: steps.length, pct }) : tx(t, `hero.status.${unit.status}`, unit.status) }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "muse-chip-bar", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { style: { width: `${pct}%` } }) })
+      ]
+    }
+  );
+}
 function apply(ctx) {
   ensureStyles();
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), "dsh-muse-ui: dictionaries");
@@ -799,6 +853,13 @@ function apply(ctx) {
     label: () => t("view.muse"),
     inject: () => ({})
   }, MuseView));
+  ctx.slots.inject("conversation.session.header.actions", () => ctx.slots.register({
+    name: "conversation.session.header.actions",
+    id: "muse-workbench-chip",
+    order: 15,
+    locale: NS,
+    inject: () => ({ sessions: ctx.sessions })
+  }, WorkbenchChip));
 }
 
 		return module.exports;

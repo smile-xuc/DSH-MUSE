@@ -1,9 +1,15 @@
 /**
- * dsh-muse-ui — browser half: the Muse 工作台 conversation view tab.
+ * dsh-muse-ui — browser half: the Muse 工作台 conversation view tab plus a
+ * session-header progress chip.
  *
- * Registers one entry in the `conversation.view` list slot (order 20, right
- * of the trajectory tab) and renders the live `muse` session projection
- * pushed by dsh-muse-bridge. Layout follows progressive disclosure:
+ * Two registrations:
+ *  1. `conversation.view` (order 20, right of 轨迹): the full workbench.
+ *  2. `conversation.session.header.actions`: a compact always-visible chip
+ *     (status dot + steps progress + mini bar) reading the same `muse`
+ *     projection via sessions.binding(id).projections.faceOf; clicking it
+ *     jumps to the workbench tab.
+ *
+ * Workbench layout follows progressive disclosure:
  *
  *   首屏（一眼看懂）: 任务状态 + 目标 + 大进度条 + 步骤清单 → 交付物 → 最新动态
  *   技术细节（点击展开）: 统计 / 里程碑 / 预算仪表 / 副作用流水线 / 证据墙 / 评测 / 完整动态
@@ -13,7 +19,7 @@
  *
  * @module dsh-muse-ui/client
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { en, NS, zh } from './locales.js';
 
 /** Required services: the conversation view slot, session bindings, locale. */
@@ -191,6 +197,20 @@ details.muse-tech .muse-eff, details.muse-tech .muse-evi { background: var(--dsw
 .muse-orbit i:nth-child(3) { inset: 24px; animation-duration: 6s; }
 .muse-orbit b { position: absolute; inset: 33px; border-radius: 50%; background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 25%, transparent); animation: muse-breathe 2.4s ease infinite; }
 @keyframes muse-spin { to { transform: rotate(360deg); } }
+/* ============ 会话头部进度 chip ============ */
+.muse-chip { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 11px; border-radius: 999px; border: 1px solid var(--dsw-alias-border-l2, #303030); background: var(--dsw-alias-bg-layer-1, #1d1d1d); cursor: pointer; font-family: inherit; font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--dsw-alias-label-secondary, #bbb); transition: border-color .15s ease, background .15s ease; }
+.muse-chip:hover { border-color: var(--dsw-alias-label-caption, #8a8a8a); background: var(--dsw-alias-interactive-bg-hover, #2a2a2a); }
+.muse-chip .muse-chip-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--dsw-alias-label-tertiary, #999); }
+.muse-chip .muse-chip-label { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.muse-chip .muse-chip-bar { flex: none; width: 46px; height: 4px; border-radius: 2px; background: var(--dsw-alias-bg-layer-2, #2c2c2c); overflow: hidden; }
+.muse-chip .muse-chip-bar i { display: block; height: 100%; border-radius: 2px; background: var(--dsw-alias-state-business-primary, #4a7dff); transition: width .4s ease; }
+.muse-chip.is-blue .muse-chip-dot { background: var(--dsw-alias-state-business-primary, #4a7dff); animation: muse-breathe 1.6s ease infinite; }
+.muse-chip.is-green .muse-chip-dot { background: var(--dsw-alias-state-success-primary, #5cb85c); }
+.muse-chip.is-green .muse-chip-bar i { background: var(--dsw-alias-state-success-primary, #5cb85c); }
+.muse-chip.is-amber .muse-chip-dot { background: var(--dsw-alias-state-warn-label, #d90); animation: muse-breathe 2.2s ease infinite; }
+.muse-chip.is-amber .muse-chip-bar i { background: var(--dsw-alias-state-warn-label, #d90); }
+.muse-chip.is-red .muse-chip-dot { background: var(--dsw-alias-state-error-primary, #f66); }
+.muse-chip.is-red .muse-chip-bar i { background: var(--dsw-alias-state-error-primary, #f66); }
 `;
 
 function ensureStyles() {
@@ -624,6 +644,55 @@ function MuseView({ useProjection, t }) {
 }
 
 /* ------------------------------------------------------------------------ */
+/* Session-header progress chip                                               */
+/* ------------------------------------------------------------------------ */
+
+const CHIP_NOOP_SUB = () => () => {};
+const CHIP_NO_SNAPSHOT = () => undefined;
+
+/**
+ * Compact always-visible progress chip in the session header. Reads the same
+ * `muse` projection the workbench renders (identity-stable observable face,
+ * absence = undefined snapshot) and jumps to the workbench tab on click by
+ * clicking the real tab button — the shell's own switch path, no internals.
+ */
+function WorkbenchChip({ sessionId, t, sessions }) {
+  const face = useMemo(() => {
+    const binding = sessions?.binding?.(sessionId);
+    return binding?.session?.projections?.faceOf?.('muse') ?? null;
+  }, [sessions, sessionId]);
+  const [subscribe, getSnapshot] = useMemo(
+    () => face === null
+      ? [CHIP_NOOP_SUB, CHIP_NO_SNAPSHOT]
+      : [(fn) => face.subscribe(fn), () => face.getSnapshot()],
+    [face],
+  );
+  const muse = useSyncExternalStore(subscribe, getSnapshot);
+  const unit = muse?.workunit ?? null;
+  if (unit == null) return null;
+  const steps = unit.steps ?? [];
+  const done = steps.filter((step) => step.status === 'done').length;
+  const pct = steps.length > 0
+    ? Math.round((done / steps.length) * 100)
+    : (unit.status === 'done' ? 100 : 0);
+  const jump = () => {
+    const label = t('view.muse');
+    const tab = [...document.querySelectorAll('[role="tab"]')].find((el) => el.textContent.trim() === label);
+    tab?.click();
+  };
+  return (
+    <button type="button" className={`muse-chip ${statusTone(unit.status)}`} onClick={jump}
+      title={`${t('view.muse')} · ${unit.objective ?? ''}`}>
+      <i className="muse-chip-dot" />
+      <span className="muse-chip-label">
+        {steps.length > 0 ? t('chip.progress', { done, total: steps.length, pct }) : tx(t, `hero.status.${unit.status}`, unit.status)}
+      </span>
+      <span className="muse-chip-bar"><i style={{ width: `${pct}%` }} /></span>
+    </button>
+  );
+}
+
+/* ------------------------------------------------------------------------ */
 /* Plugin body                                                                */
 /* ------------------------------------------------------------------------ */
 
@@ -639,4 +708,11 @@ export function apply(ctx) {
     label: () => t('view.muse'),
     inject: () => ({}),
   }, MuseView));
+  ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({
+    name: 'conversation.session.header.actions',
+    id: 'muse-workbench-chip',
+    order: 15,
+    locale: NS,
+    inject: () => ({ sessions: ctx.sessions }),
+  }, WorkbenchChip));
 }
