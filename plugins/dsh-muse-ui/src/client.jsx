@@ -20,6 +20,7 @@
  * @module dsh-muse-ui/client
  */
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { en, NS, zh } from './locales.js';
 
 /** Required services: the conversation view slot, session bindings, locale. */
@@ -197,20 +198,34 @@ details.muse-tech .muse-eff, details.muse-tech .muse-evi { background: var(--dsw
 .muse-orbit i:nth-child(3) { inset: 24px; animation-duration: 6s; }
 .muse-orbit b { position: absolute; inset: 33px; border-radius: 50%; background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 25%, transparent); animation: muse-breathe 2.4s ease infinite; }
 @keyframes muse-spin { to { transform: rotate(360deg); } }
-/* ============ 会话头部进度 chip ============ */
-.muse-chip { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 11px; border-radius: 999px; border: 1px solid var(--dsw-alias-border-l2, #303030); background: var(--dsw-alias-bg-layer-1, #1d1d1d); cursor: pointer; font-family: inherit; font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--dsw-alias-label-secondary, #bbb); transition: border-color .15s ease, background .15s ease; }
-.muse-chip:hover { border-color: var(--dsw-alias-label-caption, #8a8a8a); background: var(--dsw-alias-interactive-bg-hover, #2a2a2a); }
-.muse-chip .muse-chip-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--dsw-alias-label-tertiary, #999); }
-.muse-chip .muse-chip-label { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.muse-chip .muse-chip-bar { flex: none; width: 46px; height: 4px; border-radius: 2px; background: var(--dsw-alias-bg-layer-2, #2c2c2c); overflow: hidden; }
-.muse-chip .muse-chip-bar i { display: block; height: 100%; border-radius: 2px; background: var(--dsw-alias-state-business-primary, #4a7dff); transition: width .4s ease; }
-.muse-chip.is-blue .muse-chip-dot { background: var(--dsw-alias-state-business-primary, #4a7dff); animation: muse-breathe 1.6s ease infinite; }
-.muse-chip.is-green .muse-chip-dot { background: var(--dsw-alias-state-success-primary, #5cb85c); }
-.muse-chip.is-green .muse-chip-bar i { background: var(--dsw-alias-state-success-primary, #5cb85c); }
-.muse-chip.is-amber .muse-chip-dot { background: var(--dsw-alias-state-warn-label, #d90); animation: muse-breathe 2.2s ease infinite; }
-.muse-chip.is-amber .muse-chip-bar i { background: var(--dsw-alias-state-warn-label, #d90); }
-.muse-chip.is-red .muse-chip-dot { background: var(--dsw-alias-state-error-primary, #f66); }
-.muse-chip.is-red .muse-chip-bar i { background: var(--dsw-alias-state-error-primary, #f66); }
+/* ============ 页面右侧常驻进度面板 ============ */
+.muse-rail { position: fixed; right: 14px; top: 92px; z-index: 40; font-family: inherit; }
+.muse-rail-card { width: 216px; max-height: calc(100vh - 190px); overflow-y: auto; padding: 13px 14px 11px; border-radius: 13px; border: 1px solid var(--dsw-alias-border-l2, #303030); background: var(--dsw-alias-bg-layer-1, #1d1d1d); box-shadow: 0 10px 34px rgba(0,0,0,.32); cursor: pointer; transition: border-color .15s ease, transform .15s ease; }
+.muse-rail-card:hover { border-color: var(--dsw-alias-label-caption, #8a8a8a); transform: translateX(-2px); }
+.muse-rail-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
+.muse-rail-title { font-size: 11px; font-weight: 700; letter-spacing: .6px; color: var(--dsw-alias-label-tertiary, #999); }
+.muse-rail-fold { flex: none; width: 22px; height: 22px; border: 0; border-radius: 6px; background: transparent; color: var(--dsw-alias-label-tertiary, #999); cursor: pointer; font-size: 13px; line-height: 1; padding: 0; }
+.muse-rail-fold:hover { background: var(--dsw-alias-interactive-bg-hover, #2a2a2a); color: var(--dsw-alias-label-primary, #eee); }
+.muse-rail-obj { margin: 8px 0 10px; font-size: 12px; line-height: 1.55; color: var(--dsw-alias-label-secondary, #bbb); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.muse-rail-steps { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.muse-rail-step { display: flex; align-items: center; gap: 8px; font-size: 11.5px; line-height: 1.4; color: var(--dsw-alias-label-tertiary, #999); }
+.muse-rail-step > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.muse-rail-step.is-done { color: var(--dsw-alias-state-success-primary, #5cb85c); }
+.muse-rail-step.is-run { color: var(--dsw-alias-state-business-primary, #4a7dff); font-weight: 600; }
+.muse-rail-step.is-bad { color: var(--dsw-alias-state-error-primary, #f66); }
+.muse-rail-step i { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--dsw-alias-border-l2, #303030); }
+.muse-rail-step.is-done i { background: var(--dsw-alias-state-success-primary, #5cb85c); }
+.muse-rail-step.is-run i { background: var(--dsw-alias-state-business-primary, #4a7dff); animation: muse-breathe 1.6s ease infinite; }
+.muse-rail-step.is-bad i { background: var(--dsw-alias-state-error-primary, #f66); }
+.muse-rail-open { margin-top: 11px; width: 100%; height: 28px; border-radius: 8px; border: 1px solid var(--dsw-alias-border-l2, #303030); background: var(--dsw-alias-bg-layer-2, #2c2c2c); color: var(--dsw-alias-label-secondary, #bbb); font-size: 11.5px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.muse-rail-open:hover { background: var(--dsw-alias-interactive-bg-hover, #2a2a2a); color: var(--dsw-alias-label-primary, #eee); }
+.muse-rail.is-collapsed .muse-rail-strip { display: flex; flex-direction: column; align-items: center; gap: 7px; width: 34px; padding: 10px 0; border-radius: 17px; border: 1px solid var(--dsw-alias-border-l2, #303030); background: var(--dsw-alias-bg-layer-1, #1d1d1d); box-shadow: 0 8px 24px rgba(0,0,0,.3); cursor: pointer; font-family: inherit; }
+.muse-rail-strip .muse-rail-pct { font-size: 9.5px; font-weight: 700; color: var(--dsw-alias-label-tertiary, #999); writing-mode: vertical-rl; }
+.muse-rail-strip .muse-chip-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--dsw-alias-label-tertiary, #999); }
+.muse-rail.is-blue .muse-chip-dot { background: var(--dsw-alias-state-business-primary, #4a7dff); animation: muse-breathe 1.6s ease infinite; }
+.muse-rail.is-green .muse-chip-dot { background: var(--dsw-alias-state-success-primary, #5cb85c); }
+.muse-rail.is-amber .muse-chip-dot { background: var(--dsw-alias-state-warn-label, #d90); animation: muse-breathe 2.2s ease infinite; }
+.muse-rail.is-red .muse-chip-dot { background: var(--dsw-alias-state-error-primary, #f66); }
 `;
 
 function ensureStyles() {
@@ -647,27 +662,29 @@ function MuseView({ useProjection, t }) {
 /* Session-header progress chip                                               */
 /* ------------------------------------------------------------------------ */
 
-const CHIP_NOOP_SUB = () => () => {};
-const CHIP_NO_SNAPSHOT = () => undefined;
+const RAIL_NOOP_SUB = () => () => {};
+const RAIL_NO_SNAPSHOT = () => undefined;
 
 /**
- * Compact always-visible progress chip in the session header. Reads the same
- * `muse` projection the workbench renders (identity-stable observable face,
- * absence = undefined snapshot) and jumps to the workbench tab on click by
- * clicking the real tab button — the shell's own switch path, no internals.
+ * 页面右侧常驻进度面板：从会话头部槽位挂载，但用 portal 渲染到 body
+ * （shell 没有右侧栏插槽）。读与会话页工作台相同的 muse 投影
+ * （sessions.binding → projections.faceOf），点击卡片跳到 Muse 工作台
+ * 标签页（点击真实标签按钮，走 shell 自己的切换路径，不碰内部 API）。
+ * 可折叠成边缘细条。会话无 workunit 时不渲染。
  */
-function WorkbenchChip({ sessionId, t, sessions }) {
+function WorkbenchRail({ sessionId, t, sessions }) {
   const face = useMemo(() => {
     const binding = sessions?.binding?.(sessionId);
     return binding?.session?.projections?.faceOf?.('muse') ?? null;
   }, [sessions, sessionId]);
   const [subscribe, getSnapshot] = useMemo(
     () => face === null
-      ? [CHIP_NOOP_SUB, CHIP_NO_SNAPSHOT]
+      ? [RAIL_NOOP_SUB, RAIL_NO_SNAPSHOT]
       : [(fn) => face.subscribe(fn), () => face.getSnapshot()],
     [face],
   );
   const muse = useSyncExternalStore(subscribe, getSnapshot);
+  const [collapsed, setCollapsed] = useState(false);
   const unit = muse?.workunit ?? null;
   if (unit == null) return null;
   const steps = unit.steps ?? [];
@@ -675,20 +692,52 @@ function WorkbenchChip({ sessionId, t, sessions }) {
   const pct = steps.length > 0
     ? Math.round((done / steps.length) * 100)
     : (unit.status === 'done' ? 100 : 0);
+  const tone = statusTone(unit.status);
   const jump = () => {
     const label = t('view.muse');
     const tab = [...document.querySelectorAll('[role="tab"]')].find((el) => el.textContent.trim() === label);
     tab?.click();
   };
-  return (
-    <button type="button" className={`muse-chip ${statusTone(unit.status)}`} onClick={jump}
-      title={`${t('view.muse')} · ${unit.objective ?? ''}`}>
-      <i className="muse-chip-dot" />
-      <span className="muse-chip-label">
-        {steps.length > 0 ? t('chip.progress', { done, total: steps.length, pct }) : tx(t, `hero.status.${unit.status}`, unit.status)}
-      </span>
-      <span className="muse-chip-bar"><i style={{ width: `${pct}%` }} /></span>
-    </button>
+  return createPortal(
+    <aside className={`muse-rail ${tone}${collapsed ? ' is-collapsed' : ''}`}>
+      {collapsed ? (
+        <button type="button" className="muse-rail-strip" onClick={() => setCollapsed(false)}
+          title={`${t('view.muse')} · ${unit.objective ?? ''}`}>
+          <i className="muse-chip-dot" />
+          <span className="muse-rail-pct">{pct}%</span>
+        </button>
+      ) : (
+        <div className="muse-rail-card" onClick={jump} role="button" tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter') jump(); }}
+          title={unit.objective ?? ''}>
+          <div className="muse-rail-head">
+            <span className="muse-rail-title">{t('rail.title')}</span>
+            <button type="button" className="muse-rail-fold" title={t('rail.collapse')}
+              onClick={(e) => { e.stopPropagation(); setCollapsed(true); }}>⟨</button>
+          </div>
+          <span className={`muse-status ${tone}`}>
+            <i />{tx(t, `hero.status.${unit.status}`, unit.status)}
+          </span>
+          <p className="muse-rail-obj">{unit.objective}</p>
+          <div className="muse-progress">
+            <div className="muse-progress-bar"><i style={{ width: `${pct}%` }} /></div>
+            <div className="muse-progress-label">{t('hero.progress', { done, total: steps.length, pct })}</div>
+          </div>
+          {steps.length > 0 && (
+            <ul className="muse-rail-steps">
+              {steps.map((step) => (
+                <li key={step.id} className={`muse-rail-step ${step.status === 'done' ? 'is-done' : step.status === 'in_progress' ? 'is-run' : (step.status === 'failed' || step.status === 'skipped') ? 'is-bad' : ''}`}>
+                  <i /><span>{step.title}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button type="button" className="muse-rail-open"
+            onClick={(e) => { e.stopPropagation(); jump(); }}>{t('rail.open')}</button>
+        </div>
+      )}
+    </aside>,
+    document.body,
   );
 }
 
@@ -710,9 +759,9 @@ export function apply(ctx) {
   }, MuseView));
   ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({
     name: 'conversation.session.header.actions',
-    id: 'muse-workbench-chip',
+    id: 'muse-workbench-rail',
     order: 15,
     locale: NS,
     inject: () => ({ sessions: ctx.sessions }),
-  }, WorkbenchChip));
+  }, WorkbenchRail));
 }

@@ -8,6 +8,9 @@ export const NS = 'muse';
 export const zh = {
   'view.muse': 'Muse 工作台',
   'chip.progress': '{done}/{total} 步 · {pct}%',
+  'rail.title': 'MUSE 任务进度',
+  'rail.open': '打开工作台 →',
+  'rail.collapse': '收起',
   /* 首屏（人话层） */
   'hero.status.none': '未开始',
   'hero.status.draft': '已立项',
@@ -96,6 +99,9 @@ export const zh = {
 export const en = {
   'view.muse': 'Muse Studio',
   'chip.progress': '{done}/{total} steps · {pct}%',
+  'rail.title': 'MUSE PROGRESS',
+  'rail.open': 'Open Studio →',
+  'rail.collapse': 'Collapse',
   'hero.status.none': 'Not started',
   'hero.status.draft': 'Planned',
   'hero.status.active': 'Working',
