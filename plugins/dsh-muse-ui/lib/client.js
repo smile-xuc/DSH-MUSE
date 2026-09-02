@@ -393,6 +393,23 @@ details.muse-tech .muse-eff, details.muse-tech .muse-evi { background: var(--dsw
 .muse-bar.is-amber .muse-bar-track i { background: var(--dsw-alias-state-warn-label, #d90); }
 .muse-bar.is-red .muse-bar-dot { background: var(--dsw-alias-state-error-primary, #f66); }
 .muse-bar.is-red .muse-bar-track i { background: var(--dsw-alias-state-error-primary, #f66); }
+.muse-bar-root { position: relative; order: -1; display: inline-flex; }
+.muse-pop { position: absolute; top: 36px; right: 0; z-index: 60; width: 256px; max-height: min(480px, calc(100vh - 160px)); overflow-y: auto; padding: 13px 14px 11px; border-radius: 13px; border: 1px solid var(--dsw-alias-border-l2, #303030); background: var(--dsw-alias-bg-layer-1, #1d1d1d); box-shadow: 0 12px 40px rgba(0,0,0,.4); }
+.muse-pop-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
+.muse-pop-title { font-size: 11px; font-weight: 700; letter-spacing: .6px; color: var(--dsw-alias-label-tertiary, #999); }
+.muse-pop-obj { margin: 8px 0 10px; font-size: 12px; line-height: 1.55; color: var(--dsw-alias-label-secondary, #bbb); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.muse-pop-steps { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.muse-pop-step { display: flex; align-items: center; gap: 8px; font-size: 11.5px; line-height: 1.4; color: var(--dsw-alias-label-tertiary, #999); }
+.muse-pop-step > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.muse-pop-step.is-done { color: var(--dsw-alias-state-success-primary, #5cb85c); }
+.muse-pop-step.is-run { color: var(--dsw-alias-state-business-primary, #4a7dff); font-weight: 600; }
+.muse-pop-step.is-bad { color: var(--dsw-alias-state-error-primary, #f66); }
+.muse-pop-step i { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--dsw-alias-border-l2, #303030); }
+.muse-pop-step.is-done i { background: var(--dsw-alias-state-success-primary, #5cb85c); }
+.muse-pop-step.is-run i { background: var(--dsw-alias-state-business-primary, #4a7dff); animation: muse-breathe 1.6s ease infinite; }
+.muse-pop-step.is-bad i { background: var(--dsw-alias-state-error-primary, #f66); }
+.muse-pop-open { margin-top: 11px; width: 100%; height: 28px; border-radius: 8px; border: 1px solid var(--dsw-alias-border-l2, #303030); background: var(--dsw-alias-bg-layer-2, #2c2c2c); color: var(--dsw-alias-label-secondary, #bbb); font-size: 11.5px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.muse-pop-open:hover { background: var(--dsw-alias-interactive-bg-hover, #2a2a2a); color: var(--dsw-alias-label-primary, #eee); }
 `;
 function ensureStyles() {
   if (typeof document === "undefined") return;
@@ -823,6 +840,16 @@ function WorkbenchBar({ sessionId, t, sessions }) {
     [face]
   );
   const muse = (0, import_react.useSyncExternalStore)(subscribe, getSnapshot);
+  const [open, setOpen] = (0, import_react.useState)(false);
+  const rootRef = (0, import_react.useRef)(null);
+  (0, import_react.useEffect)(() => {
+    if (!open) return void 0;
+    const onDown = (e) => {
+      if (rootRef.current !== null && !rootRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
   const unit = muse?.workunit ?? null;
   if (unit == null) return null;
   const steps = unit.steps ?? [];
@@ -830,25 +857,47 @@ function WorkbenchBar({ sessionId, t, sessions }) {
   const pct = steps.length > 0 ? Math.round(done / steps.length * 100) : unit.status === "done" ? 100 : 0;
   const tone = statusTone(unit.status);
   const jump = () => {
+    setOpen(false);
     const label = t("view.muse");
     const tab = [...document.querySelectorAll('[role="tab"]')].find((el) => el.textContent.trim() === label);
     tab?.click();
   };
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-    "button",
-    {
-      type: "button",
-      className: `muse-bar ${tone}`,
-      onClick: jump,
-      title: `${t("view.muse")} \xB7 ${unit.objective ?? ""}`,
-      children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { className: "muse-bar-dot" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "muse-bar-status", children: tx(t, `hero.status.${unit.status}`, unit.status) }),
-        steps.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "muse-bar-steps", children: t("chip.progress", { done, total: steps.length, pct }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "muse-bar-track", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { style: { width: `${pct}%` } }) })
-      ]
-    }
-  );
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "muse-bar-root", ref: rootRef, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+      "button",
+      {
+        type: "button",
+        className: `muse-bar ${tone}`,
+        onClick: () => setOpen((v) => !v),
+        title: `${t("view.muse")} \xB7 ${unit.objective ?? ""}`,
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { className: "muse-bar-dot" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "muse-bar-status", children: tx(t, `hero.status.${unit.status}`, unit.status) }),
+          steps.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "muse-bar-steps", children: t("chip.progress", { done, total: steps.length, pct }) }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "muse-bar-track", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { style: { width: `${pct}%` } }) })
+        ]
+      }
+    ),
+    open && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-pop", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-pop-head", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "muse-pop-title", children: t("rail.title") }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: `muse-status ${tone}`, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", {}),
+          tx(t, `hero.status.${unit.status}`, unit.status)
+        ] })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "muse-pop-obj", children: unit.objective }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-progress", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "muse-progress-bar", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { style: { width: `${pct}%` } }) }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "muse-progress-label", children: t("hero.progress", { done, total: steps.length, pct }) })
+      ] }),
+      steps.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", { className: "muse-pop-steps", children: steps.map((step) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { className: `muse-pop-step ${step.status === "done" ? "is-done" : step.status === "in_progress" ? "is-run" : step.status === "failed" || step.status === "skipped" ? "is-bad" : ""}`, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", {}),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: step.title })
+      ] }, step.id)) }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { type: "button", className: "muse-pop-open", onClick: jump, children: t("rail.open") })
+    ] })
+  ] });
 }
 function apply(ctx) {
   ensureStyles();
