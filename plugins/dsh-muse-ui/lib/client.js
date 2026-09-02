@@ -30,7 +30,6 @@ __export(client_exports, {
 });
 module.exports = __toCommonJS(client_exports);
 var import_react = require("react");
-var import_react_dom = require("react-dom");
 
 // plugins/dsh-muse-ui/src/locales.js
 var NS = "muse";
@@ -379,34 +378,21 @@ details.muse-tech .muse-eff, details.muse-tech .muse-evi { background: var(--dsw
 .muse-orbit i:nth-child(3) { inset: 24px; animation-duration: 6s; }
 .muse-orbit b { position: absolute; inset: 33px; border-radius: 50%; background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 25%, transparent); animation: muse-breathe 2.4s ease infinite; }
 @keyframes muse-spin { to { transform: rotate(360deg); } }
-/* ============ \u9875\u9762\u53F3\u4FA7\u5E38\u9A7B\u8FDB\u5EA6\u9762\u677F ============ */
-.muse-rail { position: fixed; right: 14px; top: 92px; z-index: 40; font-family: inherit; }
-.muse-rail-card { width: 216px; max-height: calc(100vh - 190px); overflow-y: auto; padding: 13px 14px 11px; border-radius: 13px; border: 1px solid var(--dsw-alias-border-l2, #303030); background: var(--dsw-alias-bg-layer-1, #1d1d1d); box-shadow: 0 10px 34px rgba(0,0,0,.32); cursor: pointer; transition: border-color .15s ease, transform .15s ease; }
-.muse-rail-card:hover { border-color: var(--dsw-alias-label-caption, #8a8a8a); transform: translateX(-2px); }
-.muse-rail-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
-.muse-rail-title { font-size: 11px; font-weight: 700; letter-spacing: .6px; color: var(--dsw-alias-label-tertiary, #999); }
-.muse-rail-fold { flex: none; width: 22px; height: 22px; border: 0; border-radius: 6px; background: transparent; color: var(--dsw-alias-label-tertiary, #999); cursor: pointer; font-size: 13px; line-height: 1; padding: 0; }
-.muse-rail-fold:hover { background: var(--dsw-alias-interactive-bg-hover, #2a2a2a); color: var(--dsw-alias-label-primary, #eee); }
-.muse-rail-obj { margin: 8px 0 10px; font-size: 12px; line-height: 1.55; color: var(--dsw-alias-label-secondary, #bbb); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.muse-rail-steps { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
-.muse-rail-step { display: flex; align-items: center; gap: 8px; font-size: 11.5px; line-height: 1.4; color: var(--dsw-alias-label-tertiary, #999); }
-.muse-rail-step > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.muse-rail-step.is-done { color: var(--dsw-alias-state-success-primary, #5cb85c); }
-.muse-rail-step.is-run { color: var(--dsw-alias-state-business-primary, #4a7dff); font-weight: 600; }
-.muse-rail-step.is-bad { color: var(--dsw-alias-state-error-primary, #f66); }
-.muse-rail-step i { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--dsw-alias-border-l2, #303030); }
-.muse-rail-step.is-done i { background: var(--dsw-alias-state-success-primary, #5cb85c); }
-.muse-rail-step.is-run i { background: var(--dsw-alias-state-business-primary, #4a7dff); animation: muse-breathe 1.6s ease infinite; }
-.muse-rail-step.is-bad i { background: var(--dsw-alias-state-error-primary, #f66); }
-.muse-rail-open { margin-top: 11px; width: 100%; height: 28px; border-radius: 8px; border: 1px solid var(--dsw-alias-border-l2, #303030); background: var(--dsw-alias-bg-layer-2, #2c2c2c); color: var(--dsw-alias-label-secondary, #bbb); font-size: 11.5px; font-weight: 600; cursor: pointer; font-family: inherit; }
-.muse-rail-open:hover { background: var(--dsw-alias-interactive-bg-hover, #2a2a2a); color: var(--dsw-alias-label-primary, #eee); }
-.muse-rail.is-collapsed .muse-rail-strip { display: flex; flex-direction: column; align-items: center; gap: 7px; width: 34px; padding: 10px 0; border-radius: 17px; border: 1px solid var(--dsw-alias-border-l2, #303030); background: var(--dsw-alias-bg-layer-1, #1d1d1d); box-shadow: 0 8px 24px rgba(0,0,0,.3); cursor: pointer; font-family: inherit; }
-.muse-rail-strip .muse-rail-pct { font-size: 9.5px; font-weight: 700; color: var(--dsw-alias-label-tertiary, #999); writing-mode: vertical-rl; }
-.muse-rail-strip .muse-chip-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--dsw-alias-label-tertiary, #999); }
-.muse-rail.is-blue .muse-chip-dot { background: var(--dsw-alias-state-business-primary, #4a7dff); animation: muse-breathe 1.6s ease infinite; }
-.muse-rail.is-green .muse-chip-dot { background: var(--dsw-alias-state-success-primary, #5cb85c); }
-.muse-rail.is-amber .muse-chip-dot { background: var(--dsw-alias-state-warn-label, #d90); animation: muse-breathe 2.2s ease infinite; }
-.muse-rail.is-red .muse-chip-dot { background: var(--dsw-alias-state-error-primary, #f66); }
+/* ============ \u4F1A\u8BDD\u5934\u90E8\u6A2A\u5411\u8FDB\u5EA6\u6761 ============ */
+.muse-bar { display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--dsw-alias-border-l2, #303030); background: var(--dsw-alias-bg-layer-1, #1d1d1d); cursor: pointer; font-family: inherit; font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--dsw-alias-label-secondary, #bbb); transition: border-color .15s ease, background .15s ease; }
+.muse-bar:hover { border-color: var(--dsw-alias-label-caption, #8a8a8a); background: var(--dsw-alias-interactive-bg-hover, #2a2a2a); }
+.muse-bar .muse-bar-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--dsw-alias-label-tertiary, #999); }
+.muse-bar .muse-bar-status { flex: none; }
+.muse-bar .muse-bar-steps { flex: none; color: var(--dsw-alias-label-tertiary, #999); font-weight: 500; }
+.muse-bar .muse-bar-track { flex: none; width: 64px; height: 4px; border-radius: 2px; background: var(--dsw-alias-bg-layer-2, #2c2c2c); overflow: hidden; }
+.muse-bar .muse-bar-track i { display: block; height: 100%; border-radius: 2px; background: var(--dsw-alias-state-business-primary, #4a7dff); transition: width .4s ease; }
+.muse-bar.is-blue .muse-bar-dot { background: var(--dsw-alias-state-business-primary, #4a7dff); animation: muse-breathe 1.6s ease infinite; }
+.muse-bar.is-green .muse-bar-dot { background: var(--dsw-alias-state-success-primary, #5cb85c); }
+.muse-bar.is-green .muse-bar-track i { background: var(--dsw-alias-state-success-primary, #5cb85c); }
+.muse-bar.is-amber .muse-bar-dot { background: var(--dsw-alias-state-warn-label, #d90); animation: muse-breathe 2.2s ease infinite; }
+.muse-bar.is-amber .muse-bar-track i { background: var(--dsw-alias-state-warn-label, #d90); }
+.muse-bar.is-red .muse-bar-dot { background: var(--dsw-alias-state-error-primary, #f66); }
+.muse-bar.is-red .muse-bar-track i { background: var(--dsw-alias-state-error-primary, #f66); }
 `;
 function ensureStyles() {
   if (typeof document === "undefined") return;
@@ -824,20 +810,19 @@ function MuseView({ useProjection, t }) {
     /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TechDetails, { muse, t, now })
   ] });
 }
-var RAIL_NOOP_SUB = () => () => {
+var BAR_NOOP_SUB = () => () => {
 };
-var RAIL_NO_SNAPSHOT = () => void 0;
-function WorkbenchRail({ sessionId, t, sessions }) {
+var BAR_NO_SNAPSHOT = () => void 0;
+function WorkbenchBar({ sessionId, t, sessions }) {
   const face = (0, import_react.useMemo)(() => {
     const binding = sessions?.binding?.(sessionId);
     return binding?.session?.projections?.faceOf?.("muse") ?? null;
   }, [sessions, sessionId]);
   const [subscribe, getSnapshot] = (0, import_react.useMemo)(
-    () => face === null ? [RAIL_NOOP_SUB, RAIL_NO_SNAPSHOT] : [(fn) => face.subscribe(fn), () => face.getSnapshot()],
+    () => face === null ? [BAR_NOOP_SUB, BAR_NO_SNAPSHOT] : [(fn) => face.subscribe(fn), () => face.getSnapshot()],
     [face]
   );
   const muse = (0, import_react.useSyncExternalStore)(subscribe, getSnapshot);
-  const [collapsed, setCollapsed] = (0, import_react.useState)(false);
   const unit = muse?.workunit ?? null;
   if (unit == null) return null;
   const steps = unit.steps ?? [];
@@ -849,79 +834,20 @@ function WorkbenchRail({ sessionId, t, sessions }) {
     const tab = [...document.querySelectorAll('[role="tab"]')].find((el) => el.textContent.trim() === label);
     tab?.click();
   };
-  return (0, import_react_dom.createPortal)(
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("aside", { className: `muse-rail ${tone}${collapsed ? " is-collapsed" : ""}`, children: collapsed ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-      "button",
-      {
-        type: "button",
-        className: "muse-rail-strip",
-        onClick: () => setCollapsed(false),
-        title: `${t("view.muse")} \xB7 ${unit.objective ?? ""}`,
-        children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { className: "muse-chip-dot" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "muse-rail-pct", children: [
-            pct,
-            "%"
-          ] })
-        ]
-      }
-    ) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-      "div",
-      {
-        className: "muse-rail-card",
-        onClick: jump,
-        role: "button",
-        tabIndex: 0,
-        onKeyDown: (e) => {
-          if (e.key === "Enter") jump();
-        },
-        title: unit.objective ?? "",
-        children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-rail-head", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "muse-rail-title", children: t("rail.title") }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-              "button",
-              {
-                type: "button",
-                className: "muse-rail-fold",
-                title: t("rail.collapse"),
-                onClick: (e) => {
-                  e.stopPropagation();
-                  setCollapsed(true);
-                },
-                children: "\u27E8"
-              }
-            )
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: `muse-status ${tone}`, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", {}),
-            tx(t, `hero.status.${unit.status}`, unit.status)
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "muse-rail-obj", children: unit.objective }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-progress", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "muse-progress-bar", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { style: { width: `${pct}%` } }) }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "muse-progress-label", children: t("hero.progress", { done, total: steps.length, pct }) })
-          ] }),
-          steps.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", { className: "muse-rail-steps", children: steps.map((step) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { className: `muse-rail-step ${step.status === "done" ? "is-done" : step.status === "in_progress" ? "is-run" : step.status === "failed" || step.status === "skipped" ? "is-bad" : ""}`, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", {}),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: step.title })
-          ] }, step.id)) }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-            "button",
-            {
-              type: "button",
-              className: "muse-rail-open",
-              onClick: (e) => {
-                e.stopPropagation();
-                jump();
-              },
-              children: t("rail.open")
-            }
-          )
-        ]
-      }
-    ) }),
-    document.body
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+    "button",
+    {
+      type: "button",
+      className: `muse-bar ${tone}`,
+      onClick: jump,
+      title: `${t("view.muse")} \xB7 ${unit.objective ?? ""}`,
+      children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { className: "muse-bar-dot" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "muse-bar-status", children: tx(t, `hero.status.${unit.status}`, unit.status) }),
+        steps.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "muse-bar-steps", children: t("chip.progress", { done, total: steps.length, pct }) }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "muse-bar-track", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { style: { width: `${pct}%` } }) })
+      ]
+    }
   );
 }
 function apply(ctx) {
@@ -938,11 +864,11 @@ function apply(ctx) {
   }, MuseView));
   ctx.slots.inject("conversation.session.header.actions", () => ctx.slots.register({
     name: "conversation.session.header.actions",
-    id: "muse-workbench-rail",
+    id: "muse-workbench-bar",
     order: 15,
     locale: NS,
     inject: () => ({ sessions: ctx.sessions })
-  }, WorkbenchRail));
+  }, WorkbenchBar));
 }
 
 		return module.exports;
