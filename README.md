@@ -117,7 +117,7 @@ node eval/bin/run.mjs all --repeat 3 # 正式对照（重复采样 + A-B 交错�
 node eval/bin/compare.mjs            # 最新批次聚合（中位数/IQR/成功率）+ 历史 + 自动刷新上面的实测表
 node eval/bin/evolve.mjs             # 分析历史 → docs/proposals/<date>.md 改进提案
 node eval/bin/static-cost.mjs        # 无 LLM：插件注入的固定 prompt 开销（秒级，CI 同跑）
-node eval/bin/check-guardrails.mjs   # 无 LLM：护栏分类器 vs 43 例人工标注集（CI 门槛）
+node eval/bin/check-guardrails.mjs   # 无 LLM：护栏分类器 vs 45+14 例人工标注集（含白名单语义段，CI 门槛）
 ```
 
 循环：`run → compare → evolve → 在 DSH 会话中把提案变成 skill_workshop 受管变更 → 人审 → 重跑`。历史批次在 `eval/history/` 只增不减，DSH 主线升级后重跑即得兼容性回归报告。

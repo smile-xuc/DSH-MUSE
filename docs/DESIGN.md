@@ -83,7 +83,7 @@ JSON 落盘 ~/.dsh/storages/）。每个插件一个 domain：
 ## 5. Guardrails 四层
 
 1. **请求前**（turn 开始）：任务漂移检测（当前消息 vs WorkUnit 目标）、上下文完整性（WorkUnit 有目标才有执行类工具）。
-2. **工具调用前**：参数 schema 校验（DSH 已有）+ 业务规则（路径越界、危险命令模式、trust 级）。
+2. **工具调用前**：参数 schema 校验（DSH 已有）+ 业务规则（路径越界、危险命令模式、trust 级）。命令分类三级：dangerous（审批）/ mutating（自动台账）/ readonly（放行）；`dangerousAllowPatterns` 白名单把选定危险命令降级为仅入账（默认携带 `ALLOW_GIT_PUSH_SAFE`：常规 push 免审批、`--force`/`--delete`/`--mirror` 仍门控；预设锚定全串防链式洗白；白名单效果豁免重复守卫，因推送语义参数稳定而远端效果每次不同）。
 3. **副作用前**：写类工具（write/edit/bash 写命令/网络 POST…）→ 自动 propose effect → 按策略 auto-approve（danger-full-access 下记录不拦截）或 ask（走 approval 缝）。
 4. **交付后**：WorkUnit complete 前必须有 verify 记录（test/build/人工确认），否则拒绝 complete。
 

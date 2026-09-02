@@ -140,6 +140,47 @@ function payloadFrom(text) {
   return parseJson(text);
 }
 
+/**
+ * Backfill parser for pre-trailer sessions: their workunit results persisted
+ * as rendered prose only. Rebuilds the projection-relevant fields from that
+ * stable format (artifacts stay unrecoverable — the render only has a count).
+ */
+const WU_HEAD_RE = /^WorkUnit (\S+) \[(\w+)\] rev=\d+ plan v(\d+)$/m;
+const WU_STEP_RE = /^- (\S+) \[(pending|in_progress|done|failed|skipped)\] (.+)$/gm;
+
+function parseWorkunitRender(text) {
+  const head = WU_HEAD_RE.exec(text);
+  if (head === null) return null;
+  const objective = /^Objective: (.+)$/m.exec(text)?.[1] ?? null;
+  const steps = [];
+  WU_STEP_RE.lastIndex = 0;
+  let match;
+  while ((match = WU_STEP_RE.exec(text)) !== null) {
+    const parts = match[3].split(' — ');
+    steps.push({
+      id: match[1],
+      status: match[2],
+      title: parts[0],
+      note: parts.length > 1 ? parts.slice(1).join(' — ') : undefined,
+    });
+  }
+  const verification = /^Verification: (.+)$/m.exec(text)?.[1];
+  return {
+    ok: true,
+    unit: {
+      id: head[1],
+      status: head[2],
+      objective,
+      constraints: [],
+      planVersion: Number(head[3]),
+      steps,
+      budget: null,
+      artifacts: [],
+      verification: verification !== undefined ? { method: verification } : null,
+    },
+  };
+}
+
 function truncate(text, max) {
   const value = String(text ?? '');
   return value.length <= max ? value : `${value.slice(0, max - 1)}…`;
@@ -364,7 +405,8 @@ export function apply(ctx) {
           const failed = isErrorResult(data.message, data.error);
           const text = resultText(data.message);
           const denied = failed && /duplicate side effect|already executed|guardrails:/.test(text);
-          const payload = payloadFrom(text);
+          let payload = payloadFrom(text);
+          if (payload === null && call.name === 'workunit') payload = parseWorkunitRender(text);
 
           let next = { ...state, pending: restPending };
           if (call.name === 'workunit') next = applyWorkunitResult(next, payload);
