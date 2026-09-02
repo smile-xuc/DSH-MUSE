@@ -17,7 +17,7 @@ node bin/install.mjs status         # 查看安装状态
 node bin/install.mjs uninstall      # 完整卸载（只删自己创建的东西）
 ```
 
-> ⚠️ **默认安全姿态（务必知晓）**：安装后护栏默认启用 `ALLOW_GIT_PUSH_SAFE` 白名单——**独立的、非强制的 `git push`（如 `git push origin main`）从"需人工审批"降级为"自动入账直接执行"**，因为对个人研发工具而言日常 push 是高频例行操作。`--force`/`-f`/`--delete`/`--mirror`、以及任何带 `;`/`&&`/`|`/换行/命令替换的链式命令**仍然强制审批**（白名单锚定整条命令，无法被拼接洗白，43+ 个标注用例在 CI 守门）。如需恢复严格模式（一切 push 都要审批）：删掉 profile `cordis.patch.yml` 标记块里 `muse-guardrails` 条目的 `config` 两行即可。
+> ⚠️ **默认安全姿态（务必知晓）**：安装后护栏默认启用 `ALLOW_GIT_PUSH_SAFE` 白名单——**独立的、非强制的 `git push`（如 `git push origin main`，含 `cd <目录> &&` 前缀与 `git -C <目录>` 形式）从"需人工审批"降级为"自动入账直接执行"**，因为对个人研发工具而言日常 push 是高频例行操作。`--force`/`-f`/`--delete`/`--mirror`、以及任何带 `;`/`&&`/`|`/换行/命令替换的链式命令**仍然强制审批**（白名单锚定整条命令，无法被拼接洗白，43+ 个标注用例在 CI 守门）。如需恢复严格模式（一切 push 都要审批）：删掉 profile `cordis.patch.yml` 标记块里 `muse-guardrails` 条目的 `config` 两行即可。
 
 安装器做的事（全部可逆）：把 `plugins/` 拷到 `~/.dsh/profiles/plugins/dsh-muse/`、`skills/` 拷到 `~/.dsh/skills/`、在目标 profile 的 `node_modules` 建符号链接、在 `cordis.patch.yml` 插入 `# >>> dsh-muse >>>` 标记块。不碰 DSH 运行时的任何文件。
 

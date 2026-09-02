@@ -312,6 +312,41 @@
         "strict": "dangerous",
         "allowlisted": "dangerous",
         "note": "-C + 强推保持门控"
+      },
+      {
+        "command": "cd ~/Documents/Coder/yuanzhi-app && git push origin main",
+        "strict": "dangerous",
+        "allowlisted": "mutating",
+        "note": "cd 前缀惯例同样降级"
+      },
+      {
+        "command": "cd /tmp/x && git push",
+        "strict": "dangerous",
+        "allowlisted": "mutating"
+      },
+      {
+        "command": "cd $(rm -rf /tmp/x) && git push",
+        "strict": "dangerous",
+        "allowlisted": "dangerous",
+        "note": "cd 参数含命令替换不得洗白"
+      },
+      {
+        "command": "cd /tmp/x && git push --force",
+        "strict": "dangerous",
+        "allowlisted": "dangerous",
+        "note": "cd 前缀+强推保持门控"
+      },
+      {
+        "command": "cd /tmp/x && git push origin main; rm -rf /tmp/y",
+        "strict": "dangerous",
+        "allowlisted": "dangerous",
+        "note": "尾部分隔符保持门控"
+      },
+      {
+        "command": "cd /tmp/x && git push && rm -rf /tmp/y",
+        "strict": "dangerous",
+        "allowlisted": "dangerous",
+        "note": "尾部 && 保持门控"
       }
     ]
   }

@@ -112,7 +112,7 @@ const WRITE_TOOLS = {
  * `git push origin main; rm -rf x` can NEVER be laundered through the
  * allowlist — the dangerous tier still sees the `rm -rf`.
  */
-export const ALLOW_GIT_PUSH_SAFE = String.raw`^\s*git\s+(?:-\w+\s+\S+\s+|-\w+\s+)*push\b(?![^\n|;&]*(?:--force\b|-\w*f\b|--delete\b|--mirror\b))\s*[a-zA-Z0-9._/:~^@ \t-]*$`;
+export const ALLOW_GIT_PUSH_SAFE = String.raw`^\s*(?:cd\s+[a-zA-Z0-9._/:~^ \t-]+\s*&&\s*)?git\s+(?:-\w+\s+\S+\s+|-\w+\s+)*push\b(?![^\n|;&]*(?:--force\b|-\w*f\b|--delete\b|--mirror\b))\s*[a-zA-Z0-9._/:~^@ \t-]*$`;
 
 /** Schemastery config; every key overridable from the loader row. */
 export const Config = z.object({
