@@ -314,7 +314,7 @@
         "note": "-C + 强推保持门控"
       },
       {
-        "command": "cd ~/Documents/Coder/yuanzhi-app && git push origin main",
+        "command": "cd /Volumes/20Gb-Lib/Coder/yuanzhi-app && git push origin main",
         "strict": "dangerous",
         "allowlisted": "mutating",
         "note": "cd 前缀惯例同样降级"
