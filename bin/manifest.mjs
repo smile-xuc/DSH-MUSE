@@ -43,6 +43,11 @@ export const PLUGINS = [
    * `connection` service exists only in the web assembly — headless profiles
    * must not mount it (a missing inject keeps the entry pending forever). */
   { id: 'muse-token-stats', name: 'dsh-token-stats', host: true, webOnly: true },
+  /* Durable session pinning: header pin toggle + sidebar pins panel, pins in
+   * ~/.dsh/storages/session-pins.json (host-side ⇒ survive the per-launch
+   * random port that resets the stock browser-local order). webOnly for the
+   * same `connection`-service reason as token-stats. */
+  { id: 'muse-session-pins', name: 'dsh-session-pins', host: true, webOnly: true },
 ];
 
 /** Plugins that run on the host (everything except the browser-only UI).

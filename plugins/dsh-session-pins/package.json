@@ -1,0 +1,28 @@
+{
+  "name": "dsh-session-pins",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Durable session pinning for the DSH web UI: a header pin toggle for the current session plus a sidebar pinned-sessions panel. Pins live in a host-side JSON store (~/.dsh/storages/session-pins.json), so unlike the stock browser-local session order they survive restarts and the per-launch random port.",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-sidebar"
+      ],
+      "platform": "web"
+    }
+  }
+}
