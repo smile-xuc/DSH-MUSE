@@ -1,0 +1,8 @@
+{
+  "id": "t07-csv2json",
+  "description": "通用场景：按契约补全一个带边界情形的实现（CSV 引号字段含逗号）——日常功能补全，两臂都预期成功。",
+  "fixture": "t07",
+  "prompt": "{{WORKDIR}} 里有 csv2json.js（骨架，契约见文件头注释）和 data.csv。请按契约完成实现，然后运行 `node csv2json.js data.csv > out.json` 生成 out.json，并自行确认 out.json 是合法 JSON 数组且字段映射正确。最后报告完成。",
+  "verify": { "type": "command", "run": "node -e \"const a=JSON.parse(require('fs').readFileSync('out.json','utf8'));if(!Array.isArray(a)||a.length!==3||a[0].name!=='Zhang, Wei'||a[0].role!=='frontend'||a[1].team!=='alpha'||a[2].team!=='beta')process.exit(1)\"" },
+  "timeoutSec": 420
+}

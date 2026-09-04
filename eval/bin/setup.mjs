@@ -18,9 +18,11 @@
  * Prerequisite for eval-muse: `node bin/install.mjs install` must have run
  * (the profile links against the installed plugin copies).
  */
-import { existsSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { HOST_PLUGINS, insertRows } from '../../bin/manifest.mjs';
 
 const HOME = process.env.DSH_HOME ?? join(homedir(), '.dsh');
@@ -28,6 +30,26 @@ const PROFILES = join(HOME, 'profiles');
 const PLUGINS = HOST_PLUGINS.map((p) => p.name);
 
 const BUNDLES = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-headless'];
+
+/**
+ * The storage trio (storage / storage-json / storage-domain) had to be
+ * inserted by hand on DSH 0.1.1 (stock headless lacked it); since 0.1.2 the
+ * base bundle ships it — inserting again fails the boot with
+ * "duplicate loader entry id: storage". Detect from the INSTALLED base
+ * bundle's own patch so setup works on both generations: resolve dsh-base
+ * relative to the `dsh` executable actually on PATH.
+ */
+function baseProvidesStorage() {
+  try {
+    const bin = realpathSync(spawnSync('which', ['dsh'], { encoding: 'utf8' }).stdout.trim());
+    const require = createRequire(join(dirname(bin), 'noop.js'));
+    const patchPath = require.resolve('@deepseek-ai/dsh-base/cordis.patch.yml');
+    const patch = readFileSync(patchPath, 'utf8');
+    return /^\s*-?\s*id:\s*storage\s*$/m.test(patch);
+  } catch {
+    return false; // cannot inspect → preserve the 0.1.1 behavior (insert)
+  }
+}
 
 function writeProfile(name, { muse }) {
   const dir = join(PROFILES, name);
@@ -48,7 +70,9 @@ function writeProfile(name, { muse }) {
     for (const p of PLUGINS) {
       symlinkSync(join('..', '..', 'plugins', 'dsh-muse', p), join(dir, 'node_modules', p));
     }
-    writeFileSync(join(dir, 'cordis.patch.yml'), `# eval-muse: stock headless lacks the storage plugins, add them first.
+    const storageTrio = baseProvidesStorage()
+      ? '# eval-muse: base bundle already ships the storage trio (DSH >= 0.1.2) — nothing to insert.\n'
+      : `# eval-muse: stock headless lacks the storage plugins, add them first.
 - insert:
     - id: storage
       name: '@deepseek-ai/dsh-storage'
@@ -60,7 +84,14 @@ function writeProfile(name, { muse }) {
       name: '@deepseek-ai/dsh-storage-domain'
       config:
         backend: json
-${insertRows(HOST_PLUGINS)}`);
+`;
+    const museRows = insertRows(HOST_PLUGINS);
+    /* insertRows renders its own `- insert:`-less rows; when the storage trio
+     * was skipped the patch needs its own insert opener. */
+    const body = storageTrio.includes('- insert:')
+      ? `${storageTrio}${museRows}`
+      : `${storageTrio}- insert:\n${museRows}`;
+    writeFileSync(join(dir, 'cordis.patch.yml'), body);
   }
   console.log(`[eval:setup] profile '${name}' ready at ${dir}`);
 }

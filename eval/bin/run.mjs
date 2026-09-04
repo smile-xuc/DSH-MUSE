@@ -154,8 +154,14 @@ function sessionCwd(file) {
   } catch { return null; }
 }
 
-/** Find session logs for a workdir: exact cwd match first, then the newest
- *  log inside the [start, end] window as fallback. Returns ALL matches —
+/** Find session logs for a workdir: exact cwd match first (raw and
+ *  realpath — macOS /var vs /private/var), then a PREFIX-CONSTRAINED
+ *  fallback: only logs whose recorded cwd lives under an eval tmpdir
+ *  (`dsh-muse-eval-*`) within the [start, end] window. The unconstrained
+ *  "any newest log in the window" fallback once attributed a concurrently
+ *  running interactive session (millions of tokens) to a boot-failed eval
+ *  run — foreign sessions must never leak into metrics; a run that produced
+ *  no log reports metrics=null instead. Returns ALL matches —
  *  crash-recovery tasks produce two sessions sharing the workdir. */
 function findSessionLogs(workdir, start, end) {
   const root = join(HOME, 'sessions');
@@ -174,7 +180,14 @@ function findSessionLogs(workdir, start, end) {
   try { real = realpathSync(workdir); } catch { real = workdir; }
   const byCwd = all.filter((h) => sessionCwd(h.file) === real || sessionCwd(h.file) === workdir);
   if (byCwd.length > 0) return byCwd.sort((a, b) => a.mtime - b.mtime);
-  return all.filter((h) => h.mtime >= start - 5000 && h.mtime <= end + 5000).sort((a, b) => a.mtime - b.mtime);
+  let tmpReal;
+  try { tmpReal = realpathSync(tmpdir()); } catch { tmpReal = tmpdir(); }
+  const isEvalLog = (h) => {
+    const cwd = sessionCwd(h.file);
+    return typeof cwd === 'string'
+      && (cwd.startsWith(join(tmpdir(), 'dsh-muse-eval-') ) || cwd.startsWith(join(tmpReal, 'dsh-muse-eval-')));
+  };
+  return all.filter((h) => h.mtime >= start - 5000 && h.mtime <= end + 5000 && isEvalLog(h)).sort((a, b) => a.mtime - b.mtime);
 }
 
 function canonical(value) {

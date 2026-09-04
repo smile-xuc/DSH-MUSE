@@ -1,0 +1,11 @@
+{
+  "id": "t08-rename-refactor",
+  "description": "通用场景：跨文件符号重命名重构（mathx.js 导出 + report.js 引用 + test.js 断言路径），要求行为不变——两臂都预期成功。",
+  "fixture": "t08",
+  "prompt": "{{WORKDIR}} 是一个小项目（node test.js 可运行测试）。请把导出的函数 calcTotal 重命名为 computeTotal，同步更新所有引用与注释，要求：node test.js 依然通过，且项目里不再出现 calcTotal 这个标识符。完成后报告。",
+  "verify": { "type": "allOf", "checks": [
+    { "type": "command", "run": "node test.js" },
+    { "type": "command", "run": "! grep -rn calcTotal --include='*.js' ." }
+  ] },
+  "timeoutSec": 300
+}

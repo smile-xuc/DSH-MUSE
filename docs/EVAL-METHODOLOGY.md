@@ -58,6 +58,9 @@
 | t01-write-verify | 基线开销：最简任务上 Muse 层的固定成本 |
 | t02-idempotent-retry | 幂等护栏的行为证据 + 台账往返开销 |
 | t03-bugfix-deliver | 真实多步任务上的开销与交付率 |
+| t07-csv2json | 通用功能补全：按契约实现带边界情形的解析器（引号字段含逗号） |
+| t08-rename-refactor | 通用重构：跨文件符号重命名且行为不变（测试绿 + 旧标识符清零） |
+| t09-test-authoring | 通用测试编写：为无测试模块写 node:test 用例并跑绿 |
 
 ### 行为差异层（两臂预期**不同**——差异即证据）
 
@@ -87,7 +90,7 @@ systemPrompt 注入的固定文本。`eval/bin/static-cost.mjs` 用最小 mock c
 ## 6. 运行规程
 
 ```bash
-node eval/bin/run.mjs all --repeat 3          # 正式对照（交错执行，约 30–40 分钟）
+node eval/bin/run.mjs all --repeat 3          # 正式对照（交错执行；9 任务 × 双臂 × 3 轮 ≈ 70 分钟）
 node eval/bin/run.mjs t01-write-verify        # 冒烟（单次）
 node eval/bin/compare.mjs                     # 聚合最新批次 → 中位数/IQR 表 + history
 node eval/bin/static-cost.mjs                 # 静态开销（无 LLM，秒级）

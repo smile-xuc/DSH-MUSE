@@ -1,0 +1,11 @@
+{
+  "id": "t09-test-authoring",
+  "description": "通用场景：为无测试的模块编写 node:test 测试并要求全绿——测测试编写与边界覆盖能力，两臂都预期成功。",
+  "fixture": "t09",
+  "prompt": "{{WORKDIR}} 里的 stringutil.js 导出了 capitalize / slugify / truncate 三个函数，目前没有任何测试。请用 node:test + node:assert 创建 stringutil.test.mjs，为每个导出函数至少覆盖一个正常用例和一个边界用例（空串、含大写/符号的输入、truncate 的 max=1 等），然后运行 `node --test stringutil.test.mjs` 直到全部通过。最后报告。",
+  "verify": { "type": "allOf", "checks": [
+    { "type": "pathExists", "path": "stringutil.test.mjs" },
+    { "type": "command", "run": "node --test stringutil.test.mjs" }
+  ] },
+  "timeoutSec": 420
+}
