@@ -59,7 +59,7 @@ node bin/install.mjs uninstall      # 完整卸载（只删自己创建的东西
 
 ## 兼容性
 
-- **DSH 版本**：在 `0.1.1-rc.2` 上开发并实测通过。依赖的公共 seam：`@deepseek-ai/cordis`（Service/inject/effect）、`dsh-storage-domain`、`dsh-tools`（defineTool + tools/pre-execute、tools/result、tools/post-execute 瀑布）、`systemPrompt`、`approval`、`skills`、`sessionPersistence`、`sessionProjections`（bridge 投影）、`client-modules` 的 `dsh.client` 双面包声明（UI 插件）。主线升级后跑一遍 `eval`（见下）即可验证兼容。
+- **DSH 版本**：在 `0.1.1-rc.2` 上开发，并在 `0.1.1-rc.2` 与 `0.1.2-rc.1` 上实测通过（插件 peerDependencies 同时覆盖两者）。**升级到 0.1.2 需要 dsh-muse-bridge ≥ 0.1.3**：0.1.2 起转发的宿主事件要求无损 JSON 往返，bridge 0.1.2 及更早版本在可选字段写入 `undefined`，会导致带 muse 投影的历史会话无法加载（bridge 0.1.3 已修复并带回归测试）。另注意 0.1.2 的 `dsh web` 需要启动 token（裸 URL 返回 401），桌面壳必须透传官方完整启动 URL（参见 `desktop/`）。依赖的公共 seam：`@deepseek-ai/cordis`（Service/inject/effect）、`dsh-storage-domain`、`dsh-tools`（defineTool + tools/pre-execute、tools/result、tools/post-execute 瀑布）、`systemPrompt`、`approval`、`skills`、`sessionPersistence`、`sessionProjections`（bridge 投影）、`client-modules` 的 `dsh.client` 双面包声明（UI 插件）。主线升级后跑一遍 `eval`（见下）即可验证兼容。
 - **零冲突保证**：不修改/不重打包 DSH 任何文件；全部通过 profile 的 `cordis.patch.yml` 标记块挂载，`uninstall` 精确移除。
 - **会话安全**：不向会话追加自定义事件类型（持久层会拒读未知类型）；审计走独立存储域（`~/.dsh/storages/{workunit,effects,evidence,eval,workshop}.json`）+ 转写自带 tool/call 对。
 - **环境**：Node ≥ 20（开发环境 22.x），macOS/Linux。
