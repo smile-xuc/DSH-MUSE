@@ -161,7 +161,7 @@ function parseWorkunitRender(text) {
       id: match[1],
       status: match[2],
       title: parts[0],
-      note: parts.length > 1 ? parts.slice(1).join(' — ') : undefined,
+      note: parts.length > 1 ? parts.slice(1).join(' — ') : null,
     });
   }
   const verification = /^Verification: (.+)$/m.exec(text)?.[1];
@@ -226,7 +226,7 @@ function briefUnit(unit) {
     id: unit.id,
     status: unit.status,
     objective: truncate(unit.objective, 80),
-    updatedAt: unit.updatedAt,
+    updatedAt: unit.updatedAt ?? null,
   };
 }
 
@@ -247,7 +247,7 @@ function applyWorkunitResult(state, payload) {
         artifacts: unit.artifacts ?? [],
         verification: unit.verification ?? null,
         failureClasses: unit.failureClasses ?? [],
-        updatedAt: unit.updatedAt,
+        updatedAt: unit.updatedAt ?? null,
       },
       units: [briefUnit(unit), ...next.units.filter((candidate) => candidate.id !== unit.id)].slice(0, MAX_UNITS),
     };
@@ -278,7 +278,7 @@ function applyEffectResult(state, payload) {
           key: entry.idempotencyKey,
           action: entry.action,
           resource: truncate(entry.resource, 100),
-          summary: entry.summary ? truncate(entry.summary, 100) : undefined,
+          summary: entry.summary ? truncate(entry.summary, 100) : null,
           status: entry.status,
           origin: 'explicit',
           approval: entry.approval?.who ?? null,
@@ -420,7 +420,7 @@ export function apply(ctx) {
               const status = denied ? 'denied' : failed ? 'failed' : 'executed';
               next = {
                 ...next,
-                effects: [{ ...head, status, note: denied ? truncate(text, 140) : undefined }, ...next.effects.slice(1)],
+                effects: [{ ...head, status, note: denied ? truncate(text, 140) : null }, ...next.effects.slice(1)],
                 stats: {
                   ...next.stats,
                   executed: next.stats.executed + (failed ? 0 : 1),
@@ -446,7 +446,9 @@ export function apply(ctx) {
         return state;
       },
       wire: { viewSchema, view: toView },
-      stateVersion: 1,
+      // Rebuild cached projections whose optional fields contained undefined.
+      // Forwarded host events in DSH 0.1.2 require lossless JSON values.
+      stateVersion: 2,
     });
   });
 }
