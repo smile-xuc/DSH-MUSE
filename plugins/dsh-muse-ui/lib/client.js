@@ -51,6 +51,9 @@ var zh = {
   "hero.status.cancelled": "\u5DF2\u53D6\u6D88",
   "hero.progress": "{done}/{total} \u6B65 \xB7 {pct}%",
   "artifacts.empty": "\u4EFB\u52A1\u4EA4\u4ED8\u540E,\u8FD9\u91CC\u4F1A\u5217\u51FA\u4EA4\u4ED8\u7269\u6E05\u5355",
+  "artifacts.reveal.tip": "\u70B9\u51FB\u5728\u8BBF\u8FBE\u4E2D\u5B9A\u4F4D\uFF1A{path}",
+  "artifacts.reveal.failed": "\u6253\u5F00\u6587\u4EF6\u6240\u5728\u76EE\u5F55\u5931\u8D25\uFF1A{message}",
+  "artifacts.fromLedger": "\u6765\u81EA\u53F0\u8D26",
   "latest.prefix": "\u6700\u65B0",
   "tech.toggle": "\u6280\u672F\u7EC6\u8282(\u526F\u4F5C\u7528 \xB7 \u8BC1\u636E \xB7 \u8BC4\u6D4B \xB7 \u52A8\u6001)",
   "eval.title": "\u8BC4\u6D4B\u6307\u6807",
@@ -141,6 +144,9 @@ var en = {
   "hero.status.cancelled": "Cancelled",
   "hero.progress": "{done}/{total} steps \xB7 {pct}%",
   "artifacts.empty": "Deliverables will be listed here once the task completes",
+  "artifacts.reveal.tip": "Click to reveal in Finder/Explorer: {path}",
+  "artifacts.reveal.failed": "Failed to reveal file: {message}",
+  "artifacts.fromLedger": "from ledger",
   "latest.prefix": "Latest",
   "tech.toggle": "Technical details (effects \xB7 evidence \xB7 eval \xB7 activity)",
   "eval.title": "Evaluation",
@@ -212,7 +218,25 @@ var en = {
 
 // plugins/dsh-muse-ui/src/client.jsx
 var import_jsx_runtime = require("react/jsx-runtime");
-var inject = ["slots", "sessions", "locale"];
+var inject = ["slots", "sessions", "locale", "connection"];
+var toastEl = null;
+var toastTimer = 0;
+function toast(message) {
+  if (typeof document === "undefined") return;
+  if (toastEl === null) {
+    toastEl = document.createElement("div");
+    toastEl.style.cssText = "position:fixed;left:50%;bottom:88px;transform:translateX(-50%);z-index:9999;max-width:70vw;padding:8px 14px;border-radius:10px;pointer-events:none;font:13px/1.5 -apple-system,BlinkMacSystemFont,sans-serif;color:var(--dsw-alias-label-primary,#e8e8e8);background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-1,#2c2c2e));border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.35));box-shadow:0 8px 28px rgba(0,0,0,.35);opacity:0;transition:opacity .18s ease";
+    document.body.appendChild(toastEl);
+  }
+  toastEl.textContent = message;
+  requestAnimationFrame(() => {
+    if (toastEl) toastEl.style.opacity = "1";
+  });
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    if (toastEl) toastEl.style.opacity = "0";
+  }, 2400);
+}
 var STYLE_ID = "dsh-muse-ui/styles";
 var CSS = `
 .muse-view { display: flex; flex-direction: column; gap: 12px; height: 100%; min-height: 0; padding: 14px 16px; overflow-y: auto; box-sizing: border-box; font-size: 12.5px; color: var(--dsw-alias-label-primary, #e8e8e8); }
@@ -267,9 +291,13 @@ var CSS = `
 .muse-seal.is-ok { color: var(--dsw-alias-state-success-primary, #5cb85c); background: color-mix(in srgb, var(--dsw-alias-state-success-primary, #5cb85c) 13%, transparent); }
 .muse-seal.is-wait { color: var(--dsw-alias-state-warn-label, #d90); background: color-mix(in srgb, var(--dsw-alias-state-warn-label, #d90) 11%, transparent); }
 .muse-artifacts { display: flex; flex-wrap: wrap; gap: 6px; }
-.muse-artifact { display: flex; gap: 6px; align-items: center; padding: 4px 10px; border-radius: 8px; background: var(--dsw-alias-bg-layer-2, #232323); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+.muse-artifact { display: inline-flex; gap: 6px; align-items: center; padding: 4px 10px; border-radius: 8px; background: var(--dsw-alias-bg-layer-2, #232323); border: 1px solid var(--dsw-alias-border-l2, #303030); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: var(--dsw-alias-label-primary, #e8e8e8); cursor: pointer; text-align: left; text-decoration: none; user-select: none; transition: background .15s ease, border-color .15s ease, transform .08s ease; }
+.muse-artifact:hover { background: var(--dsw-alias-bg-layer-3, #2e2e2e); border-color: var(--dsw-alias-state-business-primary, #4a7dff); color: #fff; }
+.muse-artifact:active { transform: scale(0.97); }
 .muse-artifact .muse-art-check { color: var(--dsw-alias-state-success-primary, #5cb85c); font-weight: 700; }
 .muse-artifact .muse-art-pending { color: var(--dsw-alias-label-dimmed, #888); }
+.muse-artifact .muse-art-reveal { font-size: 10px; opacity: 0.45; margin-left: 2px; transition: opacity .15s, color .15s; }
+.muse-artifact:hover .muse-art-reveal { opacity: 1; color: var(--dsw-alias-state-business-primary, #4a7dff); }
 /* ============ \u9996\u5C4F\uFF1A\u6700\u65B0\u52A8\u6001\u4E00\u884C ============ */
 .muse-latest { display: flex; align-items: center; gap: 9px; padding: 9px 14px; border-radius: 12px; border: 1px solid var(--dsw-alias-border-l2, #303030); background: var(--dsw-alias-bg-layer-1, #1d1d1d); font-size: 12px; }
 .muse-latest .muse-latest-ico { flex: none; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10.5px; background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 17%, transparent); }
@@ -541,11 +569,19 @@ function HeroCard({ unit, t }) {
     ] }, step.id ?? index)) })
   ] });
 }
-function ArtifactsCard({ unit, effects, t }) {
+function ArtifactsCard({ unit, effects, t, revealFile, sessionCwd }) {
   const verified = unit?.verification != null;
   const artifacts = unit?.artifacts ?? [];
   const fileEffects = (effects ?? []).filter((e) => (e.action === "fs.write" || e.action === "fs.edit") && (e.status === "executed" || e.status === "executing"));
   const fallbackPaths = artifacts.length === 0 ? [...new Set(fileEffects.map((e) => e.resource).filter(Boolean))] : [];
+  const handleReveal = (targetPath) => {
+    if (!targetPath) return;
+    if (typeof revealFile === "function") {
+      revealFile(targetPath, sessionCwd).catch((err) => {
+        toast(tx(t, "artifacts.reveal.failed", { message: err?.message || String(err) }));
+      });
+    }
+  };
   return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { className: "muse-card", children: [
     /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-deliver-head", children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h4", { children: [
@@ -555,16 +591,38 @@ function ArtifactsCard({ unit, effects, t }) {
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: `muse-seal ${verified ? "is-ok" : "is-wait"}`, children: verified ? `\u2713 ${t("delivery.verified")}` : `\u2026 ${t("delivery.unverified")}` })
     ] }),
     artifacts.length === 0 && fallbackPaths.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "muse-note", children: t("artifacts.empty") }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-artifacts", children: [
-      artifacts.map((artifact) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "muse-artifact", title: artifact.path, children: [
-        "\u{1F4C4} ",
-        shortPath(artifact.path),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: verified ? "muse-art-check" : "muse-art-pending", children: verified ? "\u2713" : "\u2026" })
-      ] }, artifact.id ?? artifact.path)),
-      fallbackPaths.map((path) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "muse-artifact", title: `${path} (\u6765\u81EA\u53F0\u8D26)`, children: [
-        "\u{1F4DD} ",
-        shortPath(path),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: verified ? "muse-art-check" : "muse-art-pending", children: verified ? "\u2713" : "\u2026" })
-      ] }, path))
+      artifacts.map((artifact) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+        "button",
+        {
+          type: "button",
+          className: "muse-artifact",
+          onClick: () => handleReveal(artifact.path),
+          title: tx(t, "artifacts.reveal.tip", { path: artifact.path }),
+          children: [
+            "\u{1F4C4} ",
+            shortPath(artifact.path),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: verified ? "muse-art-check" : "muse-art-pending", children: verified ? "\u2713" : "\u2026" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "muse-art-reveal", children: "\u2197" })
+          ]
+        },
+        artifact.id ?? artifact.path
+      )),
+      fallbackPaths.map((path) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+        "button",
+        {
+          type: "button",
+          className: "muse-artifact",
+          onClick: () => handleReveal(path),
+          title: tx(t, "artifacts.reveal.tip", { path: `${path} (${tx(t, "artifacts.fromLedger", "\u6765\u81EA\u53F0\u8D26")})` }),
+          children: [
+            "\u{1F4DD} ",
+            shortPath(path),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: verified ? "muse-art-check" : "muse-art-pending", children: verified ? "\u2713" : "\u2026" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "muse-art-reveal", children: "\u2197" })
+          ]
+        },
+        path
+      ))
     ] })
   ] });
 }
@@ -814,8 +872,16 @@ function TechDetails({ muse, t, now }) {
     ] })
   ] });
 }
-function MuseView({ useProjection, t }) {
+function MuseView({ sessionId, useProjection, t, sessions, revealFile }) {
   const muse = useProjection?.("muse");
+  const sessionCwd = (0, import_react.useMemo)(() => {
+    try {
+      const binding = sessions?.binding?.(sessionId);
+      return binding?.session?.header?.cwd ?? null;
+    } catch (_) {
+      return null;
+    }
+  }, [sessions, sessionId]);
   const [now, setNow] = (0, import_react.useState)(() => Date.now());
   (0, import_react.useEffect)(() => {
     const timer = setInterval(() => setNow(Date.now()), 3e4);
@@ -835,7 +901,7 @@ function MuseView({ useProjection, t }) {
   }
   return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-view", children: [
     /* @__PURE__ */ (0, import_jsx_runtime.jsx)(HeroCard, { unit: muse.workunit, t }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ArtifactsCard, { unit: muse.workunit, effects: muse.effects, t }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ArtifactsCard, { unit: muse.workunit, effects: muse.effects, t, revealFile, sessionCwd }),
     /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LatestRow, { activity: muse.activity ?? [], t }),
     /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TechDetails, { muse, t, now })
   ] });
@@ -943,13 +1009,24 @@ function apply(ctx) {
   ensureStyles();
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), "dsh-muse-ui: dictionaries");
   const t = ctx.locale.bind(NS);
+  const connection = ctx.connection;
+  const revealFile = (path, cwd) => {
+    if (!connection?.rpc?.call) return Promise.reject(new Error("Connection RPC unavailable"));
+    return connection.rpc.call("/muse-file", "reveal", { path, cwd }).then((result) => {
+      if (!result || typeof result !== "object") throw new Error("Empty response");
+      if (result.ok !== true) {
+        throw new Error(result.error?.message || "Failed to reveal file");
+      }
+      return result.value;
+    });
+  };
   ctx.slots.inject("conversation.view", () => ctx.slots.register({
     name: "conversation.view",
     id: "muse",
     order: 20,
     locale: NS,
     label: () => t("view.muse"),
-    inject: () => ({})
+    inject: () => ({ sessions: ctx.sessions, revealFile })
   }, MuseView));
   ctx.slots.inject("conversation.session.header.utilities", () => ctx.slots.register({
     name: "conversation.session.header.utilities",
@@ -958,6 +1035,12 @@ function apply(ctx) {
     locale: NS,
     inject: () => ({ sessions: ctx.sessions })
   }, WorkbenchBar));
+  ctx.effect(() => () => {
+    if (toastEl) {
+      toastEl.remove();
+      toastEl = null;
+    }
+  }, "dsh-muse-ui: toast cleanup");
 }
 
 		return module.exports;

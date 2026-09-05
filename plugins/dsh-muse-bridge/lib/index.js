@@ -16,6 +16,10 @@
  *
  * @module dsh-muse-bridge
  */
+import { execFile } from 'node:child_process';
+import { existsSync, statSync } from 'node:fs';
+import { homedir } from 'node:os';
+import path, { dirname, isAbsolute, resolve } from 'node:path';
 import { z } from 'zod';
 
 /** Cordis plugin name used by loader diagnostics. */
@@ -339,6 +343,86 @@ function toView(state) {
   return view;
 }
 
+/* ------------------------------------------------------------------------ */
+/* Native file reveal in OS file manager (Finder / Explorer / File Manager)  */
+/* ------------------------------------------------------------------------ */
+
+export function revealPathInFinder(rawPath, options = {}) {
+  const {
+    cwd = process.cwd(),
+    platform = process.platform,
+    exec = execFile,
+    fsExists = existsSync,
+    fsStat = statSync,
+    home = homedir(),
+  } = options;
+
+  if (typeof rawPath !== 'string' || !rawPath.trim()) {
+    return Promise.resolve({
+      ok: false,
+      error: { code: 'bad-request', message: 'Path must be a non-empty string' },
+    });
+  }
+
+  const pathMod = platform === 'win32' ? path.win32 : path.posix;
+  const trimmed = rawPath.trim();
+  const expanded = trimmed.replace(/^~(?=$|\/|\\)/, home);
+  const fullPath = pathMod.isAbsolute(expanded) ? pathMod.resolve(expanded) : pathMod.resolve(cwd, expanded);
+
+  let target = fullPath;
+  let isDir = false;
+
+  if (fsExists(target)) {
+    try {
+      isDir = fsStat(target).isDirectory();
+    } catch (_) {
+      isDir = false;
+    }
+  } else {
+    // If target does not exist, find the closest existing ancestor directory
+    let cur = pathMod.dirname(target);
+    while (cur && cur !== pathMod.dirname(cur)) {
+      if (fsExists(cur)) {
+        target = cur;
+        isDir = true;
+        break;
+      }
+      cur = pathMod.dirname(cur);
+    }
+    if (!isDir && !fsExists(target)) {
+      return Promise.resolve({
+        ok: false,
+        error: { code: 'not-found', message: `Target path does not exist and no ancestor directory found: ${rawPath}` },
+      });
+    }
+  }
+
+  let cmd = 'open';
+  let args = [];
+  if (platform === 'darwin') {
+    cmd = 'open';
+    args = isDir ? [target] : ['-R', target];
+  } else if (platform === 'win32') {
+    cmd = 'explorer.exe';
+    args = isDir ? [target] : [`/select,${target}`];
+  } else {
+    cmd = 'xdg-open';
+    args = [isDir ? target : dirname(target)];
+  }
+
+  return new Promise((res) => {
+    exec(cmd, args, (err) => {
+      if (err) {
+        return res({
+          ok: false,
+          error: { code: 'exec-error', message: err.message },
+        });
+      }
+      res({ ok: true, value: { target, isDir } });
+    });
+  });
+}
+
 export function apply(ctx) {
   ctx.inject(['sessionProjections'], (projectionCtx) => {
     projectionCtx.sessionProjections.register({
@@ -450,5 +534,19 @@ export function apply(ctx) {
       // Forwarded host events in DSH 0.1.2 require lossless JSON values.
       stateVersion: 2,
     });
+  });
+
+  ctx.inject(['connection'], (connCtx) => {
+    if (!connCtx?.connection?.rpc?.handle) return;
+    connCtx.connection.rpc.handle(
+      '/muse-file',
+      async (endpoint, payload) => {
+        if (endpoint !== 'reveal') {
+          return { ok: false, error: { code: 'bad-request', message: `muse-file: unknown endpoint ${JSON.stringify(endpoint)}` } };
+        }
+        return revealPathInFinder(payload?.path, { cwd: payload?.cwd });
+      },
+      { authority: 'loopback' },
+    );
   });
 }

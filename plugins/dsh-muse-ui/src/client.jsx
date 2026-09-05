@@ -22,8 +22,33 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { en, NS, zh } from './locales.js';
 
-/** Required services: the conversation view slot, session bindings, locale. */
-export const inject = ['slots', 'sessions', 'locale'];
+/** Required services: the conversation view slot, session bindings, locale, connection. */
+export const inject = ['slots', 'sessions', 'locale', 'connection'];
+
+/* ------------------------------------------------------------------------ */
+/* Toast notification (shared minimal style)                                 */
+/* ------------------------------------------------------------------------ */
+
+let toastEl = null;
+let toastTimer = 0;
+function toast(message) {
+  if (typeof document === 'undefined') return;
+  if (toastEl === null) {
+    toastEl = document.createElement('div');
+    toastEl.style.cssText = 'position:fixed;left:50%;bottom:88px;transform:translateX(-50%);z-index:9999;'
+      + 'max-width:70vw;padding:8px 14px;border-radius:10px;pointer-events:none;'
+      + 'font:13px/1.5 -apple-system,BlinkMacSystemFont,sans-serif;'
+      + 'color:var(--dsw-alias-label-primary,#e8e8e8);'
+      + 'background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-1,#2c2c2e));'
+      + 'border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.35));'
+      + 'box-shadow:0 8px 28px rgba(0,0,0,.35);opacity:0;transition:opacity .18s ease';
+    document.body.appendChild(toastEl);
+  }
+  toastEl.textContent = message;
+  requestAnimationFrame(() => { if (toastEl) toastEl.style.opacity = '1'; });
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { if (toastEl) toastEl.style.opacity = '0'; }, 2400);
+}
 
 /* ------------------------------------------------------------------------ */
 /* Style (injected once per factory execution, like official bundles)       */
@@ -84,9 +109,13 @@ const CSS = `
 .muse-seal.is-ok { color: var(--dsw-alias-state-success-primary, #5cb85c); background: color-mix(in srgb, var(--dsw-alias-state-success-primary, #5cb85c) 13%, transparent); }
 .muse-seal.is-wait { color: var(--dsw-alias-state-warn-label, #d90); background: color-mix(in srgb, var(--dsw-alias-state-warn-label, #d90) 11%, transparent); }
 .muse-artifacts { display: flex; flex-wrap: wrap; gap: 6px; }
-.muse-artifact { display: flex; gap: 6px; align-items: center; padding: 4px 10px; border-radius: 8px; background: var(--dsw-alias-bg-layer-2, #232323); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+.muse-artifact { display: inline-flex; gap: 6px; align-items: center; padding: 4px 10px; border-radius: 8px; background: var(--dsw-alias-bg-layer-2, #232323); border: 1px solid var(--dsw-alias-border-l2, #303030); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: var(--dsw-alias-label-primary, #e8e8e8); cursor: pointer; text-align: left; text-decoration: none; user-select: none; transition: background .15s ease, border-color .15s ease, transform .08s ease; }
+.muse-artifact:hover { background: var(--dsw-alias-bg-layer-3, #2e2e2e); border-color: var(--dsw-alias-state-business-primary, #4a7dff); color: #fff; }
+.muse-artifact:active { transform: scale(0.97); }
 .muse-artifact .muse-art-check { color: var(--dsw-alias-state-success-primary, #5cb85c); font-weight: 700; }
 .muse-artifact .muse-art-pending { color: var(--dsw-alias-label-dimmed, #888); }
+.muse-artifact .muse-art-reveal { font-size: 10px; opacity: 0.45; margin-left: 2px; transition: opacity .15s, color .15s; }
+.muse-artifact:hover .muse-art-reveal { opacity: 1; color: var(--dsw-alias-state-business-primary, #4a7dff); }
 /* ============ 首屏：最新动态一行 ============ */
 .muse-latest { display: flex; align-items: center; gap: 9px; padding: 9px 14px; border-radius: 12px; border: 1px solid var(--dsw-alias-border-l2, #303030); background: var(--dsw-alias-bg-layer-1, #1d1d1d); font-size: 12px; }
 .muse-latest .muse-latest-ico { flex: none; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10.5px; background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4a7dff) 17%, transparent); }
@@ -375,14 +404,24 @@ function HeroCard({ unit, t }) {
   );
 }
 
-/** Deliverables front and center: verification seal + artifact chips. */
-function ArtifactsCard({ unit, effects, t }) {
+/** Deliverables front and center: verification seal + clickable artifact chips (Reveal in Finder). */
+function ArtifactsCard({ unit, effects, t, revealFile, sessionCwd }) {
   const verified = unit?.verification != null;
   const artifacts = unit?.artifacts ?? [];
   const fileEffects = (effects ?? []).filter((e) => (e.action === 'fs.write' || e.action === 'fs.edit') && (e.status === 'executed' || e.status === 'executing'));
   const fallbackPaths = artifacts.length === 0
     ? [...new Set(fileEffects.map((e) => e.resource).filter(Boolean))]
     : [];
+
+  const handleReveal = (targetPath) => {
+    if (!targetPath) return;
+    if (typeof revealFile === 'function') {
+      revealFile(targetPath, sessionCwd).catch((err) => {
+        toast(tx(t, 'artifacts.reveal.failed', { message: err?.message || String(err) }));
+      });
+    }
+  };
+
   return (
     <section className="muse-card">
       <div className="muse-deliver-head">
@@ -396,16 +435,30 @@ function ArtifactsCard({ unit, effects, t }) {
         : (
           <div className="muse-artifacts">
             {artifacts.map((artifact) => (
-              <span key={artifact.id ?? artifact.path} className="muse-artifact" title={artifact.path}>
+              <button
+                key={artifact.id ?? artifact.path}
+                type="button"
+                className="muse-artifact"
+                onClick={() => handleReveal(artifact.path)}
+                title={tx(t, 'artifacts.reveal.tip', { path: artifact.path })}
+              >
                 📄 {shortPath(artifact.path)}
                 <span className={verified ? 'muse-art-check' : 'muse-art-pending'}>{verified ? '✓' : '…'}</span>
-              </span>
+                <span className="muse-art-reveal">↗</span>
+              </button>
             ))}
             {fallbackPaths.map((path) => (
-              <span key={path} className="muse-artifact" title={`${path} (来自台账)`}>
+              <button
+                key={path}
+                type="button"
+                className="muse-artifact"
+                onClick={() => handleReveal(path)}
+                title={tx(t, 'artifacts.reveal.tip', { path: `${path} (${tx(t, 'artifacts.fromLedger', '来自台账')})` })}
+              >
                 📝 {shortPath(path)}
                 <span className={verified ? 'muse-art-check' : 'muse-art-pending'}>{verified ? '✓' : '…'}</span>
-              </span>
+                <span className="muse-art-reveal">↗</span>
+              </button>
             ))}
           </div>
         )}
@@ -641,8 +694,16 @@ function TechDetails({ muse, t, now }) {
 /* The view                                                                   */
 /* ------------------------------------------------------------------------ */
 
-function MuseView({ useProjection, t }) {
+function MuseView({ sessionId, useProjection, t, sessions, revealFile }) {
   const muse = useProjection?.('muse');
+  const sessionCwd = useMemo(() => {
+    try {
+      const binding = sessions?.binding?.(sessionId);
+      return binding?.session?.header?.cwd ?? null;
+    } catch (_) {
+      return null;
+    }
+  }, [sessions, sessionId]);
 
   /* coarse clock so evidence freshness re-evaluates while mounted */
   const [now, setNow] = useState(() => Date.now());
@@ -666,7 +727,7 @@ function MuseView({ useProjection, t }) {
   return (
     <div className="muse-view">
       <HeroCard unit={muse.workunit} t={t} />
-      <ArtifactsCard unit={muse.workunit} effects={muse.effects} t={t} />
+      <ArtifactsCard unit={muse.workunit} effects={muse.effects} t={t} revealFile={revealFile} sessionCwd={sessionCwd} />
       <LatestRow activity={muse.activity ?? []} t={t} />
       <TechDetails muse={muse} t={t} now={now} />
     </div>
@@ -789,13 +850,26 @@ export function apply(ctx) {
   ensureStyles();
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-muse-ui: dictionaries');
   const t = ctx.locale.bind(NS);
+
+  const connection = ctx.connection;
+  const revealFile = (path, cwd) => {
+    if (!connection?.rpc?.call) return Promise.reject(new Error('Connection RPC unavailable'));
+    return connection.rpc.call('/muse-file', 'reveal', { path, cwd }).then((result) => {
+      if (!result || typeof result !== 'object') throw new Error('Empty response');
+      if (result.ok !== true) {
+        throw new Error(result.error?.message || 'Failed to reveal file');
+      }
+      return result.value;
+    });
+  };
+
   ctx.slots.inject('conversation.view', () => ctx.slots.register({
     name: 'conversation.view',
     id: 'muse',
     order: 20,
     locale: NS,
     label: () => t('view.muse'),
-    inject: () => ({}),
+    inject: () => ({ sessions: ctx.sessions, revealFile }),
   }, MuseView));
   ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register({
     name: 'conversation.session.header.utilities',
@@ -804,4 +878,11 @@ export function apply(ctx) {
     locale: NS,
     inject: () => ({ sessions: ctx.sessions }),
   }, WorkbenchBar));
+
+  ctx.effect(() => () => {
+    if (toastEl) {
+      toastEl.remove();
+      toastEl = null;
+    }
+  }, 'dsh-muse-ui: toast cleanup');
 }
