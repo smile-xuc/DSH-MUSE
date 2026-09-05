@@ -541,9 +541,11 @@ function HeroCard({ unit, t }) {
     ] }, step.id ?? index)) })
   ] });
 }
-function ArtifactsCard({ unit, t }) {
+function ArtifactsCard({ unit, effects, t }) {
   const verified = unit?.verification != null;
   const artifacts = unit?.artifacts ?? [];
+  const fileEffects = (effects ?? []).filter((e) => (e.action === "fs.write" || e.action === "fs.edit") && (e.status === "executed" || e.status === "executing"));
+  const fallbackPaths = artifacts.length === 0 ? [...new Set(fileEffects.map((e) => e.resource).filter(Boolean))] : [];
   return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { className: "muse-card", children: [
     /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-deliver-head", children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h4", { children: [
@@ -552,11 +554,18 @@ function ArtifactsCard({ unit, t }) {
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: `muse-seal ${verified ? "is-ok" : "is-wait"}`, children: verified ? `\u2713 ${t("delivery.verified")}` : `\u2026 ${t("delivery.unverified")}` })
     ] }),
-    artifacts.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "muse-note", children: t("artifacts.empty") }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "muse-artifacts", children: artifacts.map((artifact) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "muse-artifact", title: artifact.path, children: [
-      "\u{1F4C4} ",
-      shortPath(artifact.path),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: verified ? "muse-art-check" : "muse-art-pending", children: verified ? "\u2713" : "\u2026" })
-    ] }, artifact.id ?? artifact.path)) })
+    artifacts.length === 0 && fallbackPaths.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "muse-note", children: t("artifacts.empty") }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-artifacts", children: [
+      artifacts.map((artifact) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "muse-artifact", title: artifact.path, children: [
+        "\u{1F4C4} ",
+        shortPath(artifact.path),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: verified ? "muse-art-check" : "muse-art-pending", children: verified ? "\u2713" : "\u2026" })
+      ] }, artifact.id ?? artifact.path)),
+      fallbackPaths.map((path) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "muse-artifact", title: `${path} (\u6765\u81EA\u53F0\u8D26)`, children: [
+        "\u{1F4DD} ",
+        shortPath(path),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: verified ? "muse-art-check" : "muse-art-pending", children: verified ? "\u2713" : "\u2026" })
+      ] }, path))
+    ] })
   ] });
 }
 function LatestRow({ activity, t }) {
@@ -826,7 +835,7 @@ function MuseView({ useProjection, t }) {
   }
   return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-view", children: [
     /* @__PURE__ */ (0, import_jsx_runtime.jsx)(HeroCard, { unit: muse.workunit, t }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ArtifactsCard, { unit: muse.workunit, t }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ArtifactsCard, { unit: muse.workunit, effects: muse.effects, t }),
     /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LatestRow, { activity: muse.activity ?? [], t }),
     /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TechDetails, { muse, t, now })
   ] });

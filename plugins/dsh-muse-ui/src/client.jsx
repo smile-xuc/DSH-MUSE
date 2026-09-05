@@ -376,9 +376,13 @@ function HeroCard({ unit, t }) {
 }
 
 /** Deliverables front and center: verification seal + artifact chips. */
-function ArtifactsCard({ unit, t }) {
+function ArtifactsCard({ unit, effects, t }) {
   const verified = unit?.verification != null;
   const artifacts = unit?.artifacts ?? [];
+  const fileEffects = (effects ?? []).filter((e) => (e.action === 'fs.write' || e.action === 'fs.edit') && (e.status === 'executed' || e.status === 'executing'));
+  const fallbackPaths = artifacts.length === 0
+    ? [...new Set(fileEffects.map((e) => e.resource).filter(Boolean))]
+    : [];
   return (
     <section className="muse-card">
       <div className="muse-deliver-head">
@@ -387,13 +391,19 @@ function ArtifactsCard({ unit, t }) {
           {verified ? `✓ ${t('delivery.verified')}` : `… ${t('delivery.unverified')}`}
         </span>
       </div>
-      {artifacts.length === 0
+      {artifacts.length === 0 && fallbackPaths.length === 0
         ? <p className="muse-note">{t('artifacts.empty')}</p>
         : (
           <div className="muse-artifacts">
             {artifacts.map((artifact) => (
               <span key={artifact.id ?? artifact.path} className="muse-artifact" title={artifact.path}>
                 📄 {shortPath(artifact.path)}
+                <span className={verified ? 'muse-art-check' : 'muse-art-pending'}>{verified ? '✓' : '…'}</span>
+              </span>
+            ))}
+            {fallbackPaths.map((path) => (
+              <span key={path} className="muse-artifact" title={`${path} (来自台账)`}>
+                📝 {shortPath(path)}
                 <span className={verified ? 'muse-art-check' : 'muse-art-pending'}>{verified ? '✓' : '…'}</span>
               </span>
             ))}
@@ -656,7 +666,7 @@ function MuseView({ useProjection, t }) {
   return (
     <div className="muse-view">
       <HeroCard unit={muse.workunit} t={t} />
-      <ArtifactsCard unit={muse.workunit} t={t} />
+      <ArtifactsCard unit={muse.workunit} effects={muse.effects} t={t} />
       <LatestRow activity={muse.activity ?? []} t={t} />
       <TechDetails muse={muse} t={t} now={now} />
     </div>

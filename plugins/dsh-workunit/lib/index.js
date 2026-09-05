@@ -29,6 +29,7 @@
  * @module dsh-workunit
  */
 import { existsSync } from 'node:fs';
+import { basename } from 'node:path';
 import { Service } from '@deepseek-ai/cordis';
 import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain';
 import { defineTool } from '@deepseek-ai/dsh-tools';
@@ -567,6 +568,35 @@ async function runOp(workunits, sessionId, args) {
         draft.status = 'done';
         draft.completedAt = Date.now();
         draft.verification = { at: Date.now(), method: args.verification, ...(args.note !== undefined ? { note: args.note } : {}) };
+
+        /* Auto-derive deliverables from effectRefs if none were explicitly declared via op=artifact */
+        if (draft.artifacts.length === 0 && Array.isArray(draft.effectRefs)) {
+          const FS_EFFECT_RE = /^auto:[^:]+:(fs\.(?:write|edit)):(.+):[0-9a-f]{64}(?:#\d+)?$/;
+          const autoPaths = new Set();
+          for (const ref of draft.effectRefs) {
+            const m = FS_EFFECT_RE.exec(ref);
+            if (m && typeof m[2] === 'string' && m[2] !== '') {
+              autoPaths.add(m[2]);
+            }
+          }
+          const now = Date.now();
+          for (const filePath of autoPaths) {
+            if (existsSync(filePath)) {
+              let id = basename(filePath);
+              if (draft.artifacts.some((a) => a.id === id)) {
+                id = `${id}_${draft.artifacts.length + 1}`;
+              }
+              draft.artifacts.push({
+                id,
+                kind: 'file',
+                path: filePath,
+                verified: true,
+                version: 1,
+                createdAt: now,
+              });
+            }
+          }
+        }
       });
       return { unit: next };
     }
@@ -609,6 +639,7 @@ export function apply(ctx) {
       '- Do not perform workspace mutations (write, edit, or mutating shell commands) before a WorkUnit is created. Only pure conversational Q&A or read-only inquiries may proceed without a WorkUnit.',
       '- Keep step statuses current (workunit op=step) as you work; re-plan with op=plan when the approach changes.',
       '- Before risky operations or long waits, op=checkpoint so a crash can resume from structured state.',
+      '- Register key deliverables with `workunit` op=artifact; on op=complete, files modified on disk during the task are also auto-collected as verified deliverables.',
       '- op=complete is refused without a real business verification (tests/build/human check). Tool success is not delivery.',
       '- Mutations are revision-guarded: pass ifRevision from your last read; on conflict, re-read and retry.',
     ].join('\n'),
