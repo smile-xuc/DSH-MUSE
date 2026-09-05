@@ -248,6 +248,30 @@ window.__ModuleLoader__.load({
 			return match;
 		}
 
+		/** Replace the clone's label WITHOUT guessing structure: find the leaf
+		 *  element whose text is exactly the original label and rewrite only
+		 *  its text. Falls back to a bare text node on the button. Returns
+		 *  false (→ don't insert) when the label can't be located, so a
+		 *  structural surprise leaves the menu stock instead of garbled. */
+		function relabelClone(item, originalLabel, newLabel) {
+			var all = item.querySelectorAll("*");
+			for (var i = 0; i < all.length; i++) {
+				var el = all[i];
+				if (el.children.length === 0 && (el.textContent || "").trim() === originalLabel) {
+					el.textContent = newLabel;
+					return true;
+				}
+			}
+			for (var n = 0; n < item.childNodes.length; n++) {
+				var node = item.childNodes[n];
+				if (node.nodeType === 3 && (node.textContent || "").trim() === originalLabel) {
+					node.textContent = node.textContent.replace(originalLabel, newLabel);
+					return true;
+				}
+			}
+			return false;
+		}
+
 		function injectMenuItem(forkButton) {
 			var menu = forkButton.parentElement;
 			while (menu && menu.querySelectorAll("button").length < 2) menu = menu.parentElement;
@@ -256,27 +280,33 @@ window.__ModuleLoader__.load({
 			var session = openMenuSession();
 			if (session === null) return;
 			var renameBtn = null;
+			var renameLabel = null;
 			var buttons = menu.querySelectorAll("button");
 			for (var i = 0; i < buttons.length; i++) {
 				var text = (buttons[i].textContent || "").trim();
 				for (var j = 0; j < MENU_LABELS.length; j++) {
-					if (text === MENU_LABELS[j].rename) { renameBtn = buttons[i]; break; }
+					if (text === MENU_LABELS[j].rename) { renameBtn = buttons[i]; renameLabel = MENU_LABELS[j].rename; break; }
 				}
 				if (renameBtn) break;
 			}
 			if (renameBtn === null) return;
 
+			var newLabel = isPinned(session.id) ? tx("menu.unpin") : tx("menu.pin");
 			var item = renameBtn.cloneNode(true);
-			/* Replace the icon (first svg) with a pin glyph. */
+			/* Swap the icon (first svg) for a pin glyph sized to the svg's box. */
 			var svg = item.querySelector("svg");
 			if (svg) {
+				var box = svg.getBoundingClientRect();
+				var size = Math.max(12, Math.round(box.width || 16));
 				var pin = document.createElement("span");
 				pin.textContent = "📌";
-				pin.style.cssText = "display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;font-size:12px";
+				pin.style.cssText = "display:inline-flex;align-items:center;justify-content:center;"
+					+ "width:" + size + "px;height:" + size + "px;font-size:" + (size - 4) + "px;line-height:1";
 				svg.replaceWith(pin);
 			}
-			var labelSpan = item.querySelector("span:last-child") || item;
-			labelSpan.textContent = isPinned(session.id) ? tx("menu.unpin") : tx("menu.pin");
+			/* Rewrite only the label leaf; self-check before inserting. */
+			if (!relabelClone(item, renameLabel, newLabel)) return;
+			if ((item.textContent || "").indexOf(renameLabel) !== -1) return;
 			item.addEventListener("click", function (e) {
 				e.stopPropagation();
 				e.preventDefault();
