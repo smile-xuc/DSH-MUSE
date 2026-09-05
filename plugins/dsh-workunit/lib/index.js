@@ -605,8 +605,9 @@ export function apply(ctx) {
     text: [
       '## WorkUnit — structured task state',
       'This harness keeps business-task state in WorkUnits (tool: `workunit`), separate from the chat transcript.',
-      '- For any non-trivial multi-step task, `workunit` op=create first: immutable objective, constraints, planned steps.',
-      '- Keep step statuses current as you work; re-plan with op=plan when the approach changes.',
+      '- WORKFLOW DISCIPLINE: For any engineering task, coding, file modification, bug fix, or multi-step execution, you MUST invoke `workunit` op=create as your FIRST action to establish the objective and planned steps before executing mutations.',
+      '- Do not perform workspace mutations (write, edit, or mutating shell commands) before a WorkUnit is created. Only pure conversational Q&A or read-only inquiries may proceed without a WorkUnit.',
+      '- Keep step statuses current (workunit op=step) as you work; re-plan with op=plan when the approach changes.',
       '- Before risky operations or long waits, op=checkpoint so a crash can resume from structured state.',
       '- op=complete is refused without a real business verification (tests/build/human check). Tool success is not delivery.',
       '- Mutations are revision-guarded: pass ifRevision from your last read; on conflict, re-read and retry.',

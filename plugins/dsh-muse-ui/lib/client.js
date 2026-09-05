@@ -39,6 +39,7 @@ var zh = {
   "rail.title": "MUSE \u4EFB\u52A1\u8FDB\u5EA6",
   "rail.open": "\u6253\u5F00\u5DE5\u4F5C\u53F0 \u2192",
   "rail.collapse": "\u6536\u8D77",
+  "rail.standby.tip": "\u5F53\u524D\u4F1A\u8BDD\u6682\u65E0\u6D3B\u8DC3\u4EFB\u52A1\u3002\u5F53\u60A8\u5206\u914D\u5DE5\u7A0B\u6216\u591A\u6B65\u4EFB\u52A1\u65F6\uFF0C\u6A21\u578B\u5C06\u901A\u8FC7 workunit \u5DE5\u5177\u5EFA\u7ACB\u4EFB\u52A1\u4E0E\u6B65\u9AA4\uFF1B\u4EA6\u53EF\u5728\u5BF9\u8BDD\u4E2D\u76F4\u63A5\u63D0\u793A\u201C\u8BF7\u5148\u89C4\u5212\u4EFB\u52A1\u6B65\u9AA4\u5E76\u6267\u884C\u201D\u3002",
   /* 首屏（人话层） */
   "hero.status.none": "\u672A\u5F00\u59CB",
   "hero.status.draft": "\u5DF2\u7ACB\u9879",
@@ -129,6 +130,7 @@ var en = {
   "rail.title": "MUSE PROGRESS",
   "rail.open": "Open Studio \u2192",
   "rail.collapse": "Collapse",
+  "rail.standby.tip": 'No active WorkUnit in this session. When you assign engineering or multi-step tasks, the agent will call workunit to track steps; you can also prompt "Please plan a WorkUnit first".',
   "hero.status.none": "Not started",
   "hero.status.draft": "Planned",
   "hero.status.active": "Working",
@@ -386,6 +388,8 @@ details.muse-tech .muse-eff, details.muse-tech .muse-evi { background: var(--dsw
 .muse-bar .muse-bar-steps { flex: none; color: var(--dsw-alias-label-tertiary, #999); font-weight: 500; }
 .muse-bar .muse-bar-track { flex: none; width: 64px; height: 4px; border-radius: 2px; background: var(--dsw-alias-bg-layer-2, #2c2c2c); overflow: hidden; }
 .muse-bar .muse-bar-track i { display: block; height: 100%; border-radius: 2px; background: var(--dsw-alias-state-business-primary, #4a7dff); transition: width .4s ease; }
+.muse-bar.is-standby { opacity: .7; border-style: dashed; }
+.muse-bar.is-standby:hover { opacity: 1; border-style: solid; }
 .muse-bar.is-blue .muse-bar-dot { background: var(--dsw-alias-state-business-primary, #4a7dff); animation: muse-breathe 1.6s ease infinite; }
 .muse-bar.is-green .muse-bar-dot { background: var(--dsw-alias-state-success-primary, #5cb85c); }
 .muse-bar.is-green .muse-bar-track i { background: var(--dsw-alias-state-success-primary, #5cb85c); }
@@ -851,17 +855,44 @@ function WorkbenchBar({ sessionId, t, sessions }) {
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
   const unit = muse?.workunit ?? null;
-  if (unit == null) return null;
-  const steps = unit.steps ?? [];
-  const done = steps.filter((step) => step.status === "done").length;
-  const pct = steps.length > 0 ? Math.round(done / steps.length * 100) : unit.status === "done" ? 100 : 0;
-  const tone = statusTone(unit.status);
   const jump = () => {
     setOpen(false);
     const label = t("view.muse");
     const tab = [...document.querySelectorAll('[role="tab"]')].find((el) => el.textContent.trim() === label);
     tab?.click();
   };
+  if (unit == null) {
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "muse-bar-root", ref: rootRef, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+        "button",
+        {
+          type: "button",
+          className: "muse-bar is-standby",
+          onClick: () => setOpen((v) => !v),
+          title: `${t("view.muse")} \xB7 ${t("hero.status.none")}`,
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { className: "muse-bar-dot" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "muse-bar-status", children: t("hero.status.none") })
+          ]
+        }
+      ),
+      open && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-pop", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "muse-pop-head", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "muse-pop-title", children: t("rail.title") }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "muse-status is-dim", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", {}),
+            t("hero.status.none")
+          ] })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "muse-pop-obj", style: { color: "var(--dsw-alias-label-secondary, #bbb)", fontSize: "11.5px", lineHeight: "1.5" }, children: t("rail.standby.tip") }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { type: "button", className: "muse-pop-open", onClick: jump, children: t("rail.open") })
+      ] })
+    ] });
+  }
+  const steps = unit.steps ?? [];
+  const done = steps.filter((step) => step.status === "done").length;
+  const pct = steps.length > 0 ? Math.round(done / steps.length * 100) : unit.status === "done" ? 100 : 0;
+  const tone = statusTone(unit.status);
   return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "muse-bar-root", ref: rootRef, children: [
     /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
       "button",

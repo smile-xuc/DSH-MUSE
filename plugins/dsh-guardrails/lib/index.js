@@ -271,7 +271,10 @@ export function apply(ctx, config) {
            on a cold process the first step warms the domain, later steps
            see the resumed unit. */
         const unit = workunits.peekCurrent(sessionId);
-        if (unit === undefined || unit.status === 'done' || unit.status === 'cancelled' || unit.status === 'failed') return '';
+        if (unit === undefined) {
+          return '[MUSE: No active WorkUnit in this session. If this turn executes an engineering task or file changes, call `workunit` op=create first to track objective and steps.]';
+        }
+        if (unit.status === 'done' || unit.status === 'cancelled' || unit.status === 'failed') return '';
         const open = unit.steps.filter((s) => s.status === 'pending' || s.status === 'in_progress');
         const budget = unit.budget.maxTokens !== undefined
           ? ` tokens ${unit.budget.spentTokens}/${unit.budget.maxTokens}${unit.budget.spentTokens >= unit.budget.maxTokens ? ' — BUDGET EXCEEDED: wrap up, checkpoint and report' : ''}`

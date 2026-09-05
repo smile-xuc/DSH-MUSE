@@ -205,6 +205,8 @@ details.muse-tech .muse-eff, details.muse-tech .muse-evi { background: var(--dsw
 .muse-bar .muse-bar-steps { flex: none; color: var(--dsw-alias-label-tertiary, #999); font-weight: 500; }
 .muse-bar .muse-bar-track { flex: none; width: 64px; height: 4px; border-radius: 2px; background: var(--dsw-alias-bg-layer-2, #2c2c2c); overflow: hidden; }
 .muse-bar .muse-bar-track i { display: block; height: 100%; border-radius: 2px; background: var(--dsw-alias-state-business-primary, #4a7dff); transition: width .4s ease; }
+.muse-bar.is-standby { opacity: .7; border-style: dashed; }
+.muse-bar.is-standby:hover { opacity: 1; border-style: solid; }
 .muse-bar.is-blue .muse-bar-dot { background: var(--dsw-alias-state-business-primary, #4a7dff); animation: muse-breathe 1.6s ease infinite; }
 .muse-bar.is-green .muse-bar-dot { background: var(--dsw-alias-state-success-primary, #5cb85c); }
 .muse-bar.is-green .muse-bar-track i { background: var(--dsw-alias-state-success-primary, #5cb85c); }
@@ -696,19 +698,43 @@ function WorkbenchBar({ sessionId, t, sessions }) {
     return () => document.removeEventListener('mousedown', onDown);
   }, [open]);
   const unit = muse?.workunit ?? null;
-  if (unit == null) return null;
-  const steps = unit.steps ?? [];
-  const done = steps.filter((step) => step.status === 'done').length;
-  const pct = steps.length > 0
-    ? Math.round((done / steps.length) * 100)
-    : (unit.status === 'done' ? 100 : 0);
-  const tone = statusTone(unit.status);
   const jump = () => {
     setOpen(false);
     const label = t('view.muse');
     const tab = [...document.querySelectorAll('[role="tab"]')].find((el) => el.textContent.trim() === label);
     tab?.click();
   };
+
+  if (unit == null) {
+    return (
+      <span className="muse-bar-root" ref={rootRef}>
+        <button type="button" className="muse-bar is-standby" onClick={() => setOpen((v) => !v)}
+          title={`${t('view.muse')} · ${t('hero.status.none')}`}>
+          <i className="muse-bar-dot" />
+          <span className="muse-bar-status">{t('hero.status.none')}</span>
+        </button>
+        {open && (
+          <div className="muse-pop">
+            <div className="muse-pop-head">
+              <span className="muse-pop-title">{t('rail.title')}</span>
+              <span className="muse-status is-dim"><i />{t('hero.status.none')}</span>
+            </div>
+            <p className="muse-pop-obj" style={{ color: 'var(--dsw-alias-label-secondary, #bbb)', fontSize: '11.5px', lineHeight: '1.5' }}>
+              {t('rail.standby.tip')}
+            </p>
+            <button type="button" className="muse-pop-open" onClick={jump}>{t('rail.open')}</button>
+          </div>
+        )}
+      </span>
+    );
+  }
+
+  const steps = unit.steps ?? [];
+  const done = steps.filter((step) => step.status === 'done').length;
+  const pct = steps.length > 0
+    ? Math.round((done / steps.length) * 100)
+    : (unit.status === 'done' ? 100 : 0);
+  const tone = statusTone(unit.status);
   return (
     <span className="muse-bar-root" ref={rootRef}>
       <button type="button" className={`muse-bar ${tone}`} onClick={() => setOpen((v) => !v)}

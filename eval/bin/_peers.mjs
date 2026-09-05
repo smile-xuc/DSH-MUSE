@@ -16,7 +16,7 @@
  * Idempotent; npm ci wipes node_modules but the next eval run recreates the
  * links. Everything here is a symlink — nothing is copied or modified.
  */
-import { existsSync, lstatSync, mkdirSync, readlinkSync, symlinkSync, rmSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readlinkSync, realpathSync, symlinkSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -36,10 +36,20 @@ function candidateRoots() {
   const roots = [];
   if (process.env.DSH_APP_NODE_MODULES !== undefined) roots.push(process.env.DSH_APP_NODE_MODULES);
   roots.push('/Applications/DeepSeek Harness.app/Contents/Resources/app/node_modules');
+  roots.push(join(homedir(), 'Library', 'Application Support', 'ai.deepseek.harness', 'runtime', 'node_modules'));
   try {
     const bin = execFileSync('/bin/sh', ['-c', 'command -v dsh'], { encoding: 'utf8' }).trim();
-    if (bin !== '') roots.push(resolve(dirname(bin), '..')); // npm-style .bin/../<pkg> → walk to node_modules
-    if (bin !== '') roots.push(resolve(dirname(bin), '..', '..', '..')); // …/@deepseek-ai/dsh/lib/bin.js → node_modules
+    if (bin !== '') {
+      roots.push(resolve(dirname(bin), '..')); // npm-style .bin/../<pkg> → walk to node_modules
+      roots.push(resolve(dirname(bin), '..', '..', '..')); // …/@deepseek-ai/dsh/lib/bin.js → node_modules
+      try {
+        const real = realpathSync(bin);
+        if (real !== bin) {
+          roots.push(resolve(dirname(real), '..'));
+          roots.push(resolve(dirname(real), '..', '..', '..'));
+        }
+      } catch { /* symlink resolution failed */ }
+    }
   } catch { /* no dsh on PATH */ }
   roots.push(join(homedir(), '.dsh', 'profiles', 'web', 'node_modules'));
   return roots;

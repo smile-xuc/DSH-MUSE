@@ -11,6 +11,7 @@ export const zh = {
   'rail.title': 'MUSE 任务进度',
   'rail.open': '打开工作台 →',
   'rail.collapse': '收起',
+  'rail.standby.tip': '当前会话暂无活跃任务。当您分配工程或多步任务时，模型将通过 workunit 工具建立任务与步骤；亦可在对话中直接提示“请先规划任务步骤并执行”。',
   /* 首屏（人话层） */
   'hero.status.none': '未开始',
   'hero.status.draft': '已立项',
@@ -102,6 +103,7 @@ export const en = {
   'rail.title': 'MUSE PROGRESS',
   'rail.open': 'Open Studio →',
   'rail.collapse': 'Collapse',
+  'rail.standby.tip': 'No active WorkUnit in this session. When you assign engineering or multi-step tasks, the agent will call workunit to track steps; you can also prompt "Please plan a WorkUnit first".',
   'hero.status.none': 'Not started',
   'hero.status.draft': 'Planned',
   'hero.status.active': 'Working',
