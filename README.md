@@ -18,7 +18,7 @@ git clone https://github.com/smile-xuc/DSH-MUSE.git && cd DSH-MUSE
 node bin/install.mjs install
 ```
 
-重启 DSH 即完成。装好后你会看到：会话顶部多出「Muse 工作台」标签页和进度胶囊、会话标题栏的 📌 置顶开关、侧栏底部的「置顶会话」面板与 token 统计行。
+重启 DSH 即完成。装好后你会看到：会话顶部多出「Muse 工作台」标签页和进度胶囊、会话标题栏的 📌 置顶开关、侧栏底部的「置顶会话」面板与 token 统计行；拖入窗口的非图片文件（pdf/zip/文件夹等）会自动变成输入框里的路径引用，不再被"不支持的类型"拒绝。
 
 ```bash
 node bin/install.mjs status                          # 查看安装状态
@@ -44,6 +44,7 @@ node bin/install.mjs uninstall                       # 完整卸载（只删自�
 | 可视化 | `dsh-muse-bridge` + `dsh-muse-ui` | agent 干活方式只在转写里 | Web UI 会话标签栏新增 **Muse 工作台** 视图（轨迹右侧），实时渲染 muse 工作方式（见下） |
 | 可观测性 | `dsh-token-stats` | 用量只能翻会话日志 | Web UI 侧栏（设置上方）常驻**今日/本周 token 统计**，点击弹出按日/按周完整历史；复用 harness 官方 usage 口径（防流式双计），增量缓存扫描 |
 | 会话置顶 | `dsh-session-pins` | 手动排序记在原点绑定的浏览器 localStorage，`dsh web` 每次启动随机端口 → 重启即丢 | 会话头部 📌 置顶开关 + 侧栏底部置顶面板（点击跳转/✕ 取消）；pins 存宿主侧 `~/.dsh/storages/session-pins.json`（原子写），重启/换端口/换浏览器均不丢 |
+| 拖放路径引用 | `dsh-drop-path-ref` | 拖入非图片文件（pdf/zip/csv/文件夹…）只弹"仅支持图片"提示，文件到不了对话 | 捕获阶段拦截纯非图片拖放，把**绝对路径**作为文本插入输入框（agent 的 read/bash 直接可用）；图片仍走原生附件流程。桌面壳内由原生 WKWebView 拖放桥提供可靠路径，浏览器内走 uri-list 解析（Chromium 拿不到路径时回落原生行为） |
 
 
 ## Muse 工作台（可视化面板）
@@ -145,9 +146,10 @@ node eval/bin/check-guardrails.mjs   # 无 LLM：护栏分类器 vs 49+22 例人
 ## 仓库结构
 
 ```
-plugins/            十个插件（独立 npm 包形态，peerDeps 钉住 DSH seam 版本）：
+plugins/            十一个插件（独立 npm 包形态，peerDeps 钉住 DSH seam 版本）：
                     六个 Muse 控制面 + dsh-muse-bridge（会话投影桥）+ dsh-muse-ui（浏览器端工作台）
                     + dsh-token-stats（侧栏 token 统计，仅 web）+ dsh-session-pins（会话置顶，仅 web）
+                    + dsh-drop-path-ref（拖放非图片文件自动转为路径引用，仅 web）
 skills/             muse-orchestrator 编排纪律 skill
 bin/manifest.mjs    插件/技能/补丁块清单 —— 单一事实源（install、eval setup、CI 检查共用）
 bin/install.mjs     幂等安装/卸载/状态（含旧手工安装的自动迁移、UI bundle 存在性预警）

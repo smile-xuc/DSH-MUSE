@@ -48,6 +48,13 @@ export const PLUGINS = [
    * random port that resets the stock browser-local order). webOnly for the
    * same `connection`-service reason as token-stats. */
   { id: 'muse-session-pins', name: 'dsh-session-pins', host: true, webOnly: true },
+  /* Drop-any-file support: files the stock image-only drop flow rejects are
+   * inserted into the composer as absolute-path references (capture-phase
+   * interception client-side; the packaged desktop shell adds a native
+   * WKWebView drag bridge for guaranteed paths). Host apply is inert;
+   * webOnly because the feature is DOM-bound and must stay out of headless
+   * eval profiles. */
+  { id: 'muse-drop-path-ref', name: 'dsh-drop-path-ref', host: true, webOnly: true },
 ];
 
 /** Plugins that run on the host (everything except the browser-only UI).

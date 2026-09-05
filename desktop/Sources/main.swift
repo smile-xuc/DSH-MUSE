@@ -2,9 +2,51 @@ import AppKit
 import WebKit
 import Foundation
 
+/// WKWebView subclass backing the dsh-drop-path-ref plugin: a drop of files
+/// the composer cannot attach (anything but png/jpg/webp/gif/svg) is turned
+/// into absolute-path prompt references instead of the stock "unsupported
+/// type" rejection. The override stays strictly conservative — it hands the
+/// drop back to the stock flow (super) whenever the plugin has not reported
+/// ready, the drop is empty, or every file is a stock-supported image.
+final class HarnessWebView: WKWebView {
+    /// Set only through the `dshDropPathRef` script message posted by the
+    /// client plugin on apply/dispose; false again after each navigation.
+    var dropPathRefReady = false
+    private static let stockImageExtensions: Set<String> = ["png", "jpg", "jpeg", "webp", "gif", "svg"]
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        let urls = (sender.draggingPasteboard.readObjects(forClasses: [NSURL.self],
+                                                          options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? [])
+            .filter(\.isFileURL)
+        guard dropPathRefReady,
+              !urls.isEmpty,
+              urls.allSatisfy({ !Self.stockImageExtensions.contains($0.pathExtension.lowercased()) }) else {
+            return super.performDragOperation(sender)
+        }
+        guard let data = try? JSONSerialization.data(withJSONObject: urls.map(\.path)),
+              let json = String(data: data, encoding: .utf8) else {
+            return super.performDragOperation(sender)
+        }
+        evaluateJavaScript("window.__dshDropPathRef ? window.__dshDropPathRef.insertPaths(\(json)) : false")
+        return true
+    }
+}
+
+/// Relays the dsh-drop-path-ref client plugin's readiness to the web view;
+/// drops are intercepted natively only while the plugin reports ready, so an
+/// uninstalled plugin silently restores the stock drop behavior.
+final class DropPathRefBridge: NSObject, WKScriptMessageHandler {
+    weak var webView: HarnessWebView?
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == "dshDropPathRef" else { return }
+        webView?.dropPathRefReady = (message.body as? String) == "ready"
+    }
+}
+
 final class HarnessApp: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate {
     private var window: NSWindow!
-    private var webView: WKWebView!
+    private var webView: HarnessWebView!
+    private let dropPathRefBridge = DropPathRefBridge()
     private var child: Process?
     private var launchURL: URL?
     private var titleObservation: NSKeyValueObservation?
@@ -26,7 +68,9 @@ final class HarnessApp: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNav
         installMenu()
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
-        webView = WKWebView(frame: .zero, configuration: configuration)
+        configuration.userContentController.add(dropPathRefBridge, name: "dshDropPathRef")
+        webView = HarnessWebView(frame: .zero, configuration: configuration)
+        dropPathRefBridge.webView = webView
         webView.navigationDelegate = self
         webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = true
@@ -279,6 +323,8 @@ final class HarnessApp: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNav
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        /* A fresh page load wipes the plugin's hook; it re-posts "ready". */
+        self.webView.dropPathRefReady = false
         guard webView.url?.host == "127.0.0.1" else { return }
         verifyRenderedUI(generation)
     }

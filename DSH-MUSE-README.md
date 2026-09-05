@@ -16,7 +16,7 @@
 | EvalRecord | 三层评测缓存（结果/轨迹/组件） | `~/.dsh/storages/eval.json` |
 | SkillProposal | Skill 治理流水线（提案→审批→灰度→回滚） | `~/.dsh/storages/workshop.json` |
 
-## 十个插件（`~/.dsh/profiles/plugins/dsh-muse/`）
+## 十一个插件（`~/.dsh/profiles/plugins/dsh-muse/`）
 
 | 插件 | 服务/工具 | 职责 |
 |---|---|---|
@@ -30,6 +30,7 @@
 | `dsh-muse-ui` | client 插件（`conversation.view` 槽） | Web GUI「Muse 工作台」标签页：任务旅程/副作用流水线/证据墙/交付印章/实时动态；bundle 已提交，改 src 后 `npm run build:ui` |
 | `dsh-token-stats` | host RPC `/token-stats` + client（`sidebar.footer.action` 槽） | 侧栏常驻今日/本周 token 统计，点击弹出完整历史；仅 web profile（依赖 connection 服务） |
 | `dsh-session-pins` | host RPC `/session-pins` + client（`conversation.session.header.actions` + `sidebar.footer.action` 槽） | 会话置顶：头部 📌 开关 + 侧栏置顶面板；pins 存宿主侧 `storages/session-pins.json`，重启/换端口不丢；仅 web profile |
+| `dsh-drop-path-ref` | client 捕获阶段 drop 拦截（host 惰性） | 拖入非图片文件自动转为输入框路径引用（含空格自动加引号）；桌面壳经原生 WKWebView 拖放桥（`HarnessWebView` + ready 握手）拿绝对路径，浏览器内走 uri-list；图片仍走原生附件流程；仅 web profile |
 
 另有 `~/.dsh/skills/muse-orchestrator/SKILL.md`：编排纪律（Workflow/Pipeline/Agent Team 选型、副作用归父）。
 
@@ -37,7 +38,7 @@
 
 ## 激活状态
 
-- **web profile**（GUI 用）：`~/.dsh/profiles/web/cordis.patch.yml` 已插入八个插件条目（`# >>> dsh-muse >>>` 标记块管理）+ `node_modules` 符号链接。插件源码改动后重启 GUI 生效；回滚删标记块或 `node bin/install.mjs uninstall`。
+- **web profile**（GUI 用）：`~/.dsh/profiles/web/cordis.patch.yml` 已插入全部插件条目（`# >>> dsh-muse >>>` 标记块管理，以 `bin/manifest.mjs` 为单一事实源）+ `node_modules` 符号链接。插件源码改动后重启 GUI 生效；回滚删标记块或 `node bin/install.mjs uninstall`。
 - **eval profiles**：`node eval/bin/setup.mjs` 生成 `eval-vanilla` / `eval-muse`（headless 对照；muse 侧挂七个宿主插件，ui 属浏览器端不进基准）。回归命令：`node eval/bin/run.mjs all`。
 
 ## 验证证据（2026-08-31 实跑）

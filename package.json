@@ -10,6 +10,7 @@
   },
   "scripts": {
     "build:ui": "node build/build-ui.mjs",
+    "build:drop-path-ref": "node build/build-drop-path-ref.mjs",
     "install:muse": "node bin/install.mjs install",
     "uninstall": "node bin/install.mjs uninstall",
     "status": "node bin/install.mjs status",
