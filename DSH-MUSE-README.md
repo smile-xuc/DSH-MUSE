@@ -29,7 +29,7 @@
 | `dsh-muse-bridge` | 会话投影 `muse` | 可观测桥：把 muse 工具调用对与护栏拦截的写类调用纯折叠成会话投影，实时推给 Web 客户端；headless 下无投影注册表时惰性 |
 | `dsh-muse-ui` | client 插件（`conversation.view` 槽） | Web GUI「Muse 工作台」标签页：任务旅程/副作用流水线/证据墙/交付印章/实时动态；bundle 已提交，改 src 后 `npm run build:ui` |
 | `dsh-token-stats` | host RPC `/token-stats` + client（`sidebar.footer.action` 槽） | 侧栏常驻今日/本周 token 统计，点击弹出完整历史；仅 web profile（依赖 connection 服务） |
-| `dsh-session-pins` | host RPC `/session-pins` + client（`conversation.session.header.actions` + `sidebar.footer.action` 槽） | 会话置顶：头部 📌 开关 + 侧栏置顶面板；pins 存宿主侧 `storages/session-pins.json`，重启/换端口不丢；仅 web profile |
+| `dsh-session-pins` | host RPC `/session-pins` + client（DOM 增强：会话行菜单注入 + 侧栏顶部置顶区） | 会话置顶：入口在会话行「⋯」菜单（重命名同级），置顶区显示在侧栏列表上方；pins 存宿主侧 `storages/session-pins.json`，重启/换端口不丢；仅 web profile |
 | `dsh-drop-path-ref` | client 捕获阶段 drop 拦截（host 惰性） | 拖入非图片文件自动转为输入框路径引用（含空格自动加引号）；桌面壳经原生 WKWebView 拖放桥（`HarnessWebView` + ready 握手）拿绝对路径，浏览器内走 uri-list；图片仍走原生附件流程；仅 web profile |
 
 另有 `~/.dsh/skills/muse-orchestrator/SKILL.md`：编排纪律（Workflow/Pipeline/Agent Team 选型、副作用归父）。

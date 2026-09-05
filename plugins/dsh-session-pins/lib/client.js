@@ -1,15 +1,18 @@
 /**
- * dsh-session-pins (client half) — two registrations sharing one RPC-backed
- * pin store (this bundle's factory scope):
+ * dsh-session-pins (client half) — v0.2: native-feeling pin UX.
  *
- *  1. `conversation.session.header.actions`: a pin toggle for the current
- *     session (📌). Title is resolved from the live session list snapshot at
- *     pin time (`sessions.list` — displayTitle, the same label the sidebar
- *     shows).
- *  2. `sidebar.footer.action`: a "置顶会话" row opening an upward popover of
- *     pinned sessions; clicking a row navigates via `sessions.open(id)`, the
- *     ✕ unpins. Entries no longer in the session list render dimmed but stay
- *     (they may be archived, not deleted).
+ *  1. Entry: the session row menu (重命名 / 分叉会话 / 归档会话 — the same
+ *     menu that renames a session) gains a 置顶会话/取消置顶 item. Upstream
+ *     hard-codes that menu (no slot), so a throttled MutationObserver
+ *     detects the portal menu by its fork item's label, resolves the session
+ *     from the row carrying the menuOpen class + the live session list
+ *     (title match, unique only), and clones the rename item's DOM for a
+ *     pixel-consistent action row.
+ *  2. Display: a 置顶会话 section is prepended to the sidebar's browsing
+ *     region (`sidebar.workspaces` is a single-kind slot owned by the
+ *     upstream browser, so the section lives as plain DOM above it), listing
+ *     pinned sessions; click opens, ✕ unpins. Hidden while empty or in rail
+ *     mode. The observer re-injects it if a React re-render removes it.
  *
  * State lives host-side (see lib/index.js), so pins survive restarts and the
  * per-launch random port that silently resets the stock browser-local order.
@@ -23,81 +26,51 @@ window.__ModuleLoader__.load({
 		var module = { exports: {} };
 		var exports = module.exports;
 		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-		var React = require("react");
-		var h = React.createElement;
-		var useState = React.useState;
-		var useEffect = React.useEffect;
-		var useRef = React.useRef;
-		var useSyncExternalStore = React.useSyncExternalStore;
 
 		//#region i18n
 		var NS = "session-pins";
 		var zh = {
-			"toggle.pin": "置顶此会话",
-			"toggle.unpin": "取消置顶",
-			"panel.label": "置顶会话",
-			"panel.empty": "还没有置顶会话。点击会话标题栏的 📌 置顶常用会话。",
-			"panel.error": "读取置顶失败：{message}",
-			"panel.missing": "（已不在会话列表）",
+			"menu.pin": "置顶会话",
+			"menu.unpin": "取消置顶",
+			"section.label": "置顶会话",
+			"row.unpin": "取消置顶",
+			"row.missing": "（已不在会话列表）",
+			"toast.error": "置顶操作失败：{message}",
 		};
 		var en = {
-			"toggle.pin": "Pin this session",
-			"toggle.unpin": "Unpin",
-			"panel.label": "Pinned sessions",
-			"panel.empty": "No pinned sessions yet. Use the 📌 in a session header to pin it.",
-			"panel.error": "Failed to load pins: {message}",
-			"panel.missing": "(no longer listed)",
+			"menu.pin": "Pin session",
+			"menu.unpin": "Unpin session",
+			"section.label": "Pinned",
+			"row.unpin": "Unpin",
+			"row.missing": "(no longer listed)",
+			"toast.error": "Pin action failed: {message}",
 		};
-		function tx(t, key, params) {
-			var out = t(key);
+		var tRef = function (key) { return en[key] || key; };
+		function tx(key, params) {
+			var out = tRef(key);
 			if (out === key) out = en[key] || key;
 			if (params) for (var k in params) out = out.replace("{" + k + "}", String(params[k]));
 			return out;
 		}
 		//#endregion
 
-		//#region styles
-		var CSS = ""
-			+ ".dsh-pins_toggle{flex:none;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;border-radius:8px;background:0 0;cursor:pointer;font-size:14px;line-height:1;color:var(--dsw-alias-label-tertiary);transition:background .15s ease,color .15s ease;font-family:inherit}"
-			+ ".dsh-pins_toggle:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}"
-			+ ".dsh-pins_toggle[data-pinned=true]{color:var(--dsw-alias-state-business-primary)}"
-			+ ".dsh-pins_row{width:calc(100% + 4px);min-height:42px;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border:none;border-radius:12px;align-items:center;gap:8px;margin:0 -2px;padding:4px 10px 4px 8px;font-family:inherit;font-size:14px;display:inline-flex;overflow:hidden;text-align:left;transition:background .15s ease}"
-			+ ".dsh-pins_row:hover{background:var(--dsw-alias-interactive-bg-hover)}"
-			+ ".dsh-pins_rowIcon{flex:none;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;background:var(--dsw-alias-state-business-tertiary);color:var(--dsw-alias-state-business-primary);font-size:13px}"
-			+ ".dsh-pins_rowText{min-width:0;flex:1;display:flex;flex-direction:column;gap:1px;overflow:hidden}"
-			+ ".dsh-pins_rowLabel{font-size:13px;line-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}"
-			+ ".dsh-pins_rowSub{font-size:11px;line-height:15px;color:var(--dsw-alias-label-caption);font-variant-numeric:tabular-nums}"
-			+ ".dsh-pins_popWrap{position:relative}"
-			+ ".dsh-pins_pop{position:absolute;left:0;right:0;bottom:calc(100% + 6px);z-index:60;border:1px solid var(--dsw-alias-border-l2);border-radius:14px;background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-1));box-shadow:0 10px 32px rgba(0,0,0,.28);padding:6px;display:flex;flex-direction:column;gap:1px;max-height:320px;overflow-y:auto}"
-			+ ".dsh-pins_item{display:flex;align-items:center;gap:6px;border:none;background:0 0;border-radius:9px;padding:6px 8px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--dsw-alias-label-primary);text-align:left;transition:background .12s ease}"
-			+ ".dsh-pins_item:hover{background:var(--dsw-alias-interactive-bg-hover)}"
-			+ ".dsh-pins_itemTitle{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}"
-			+ ".dsh-pins_item[data-missing=true] .dsh-pins_itemTitle{color:var(--dsw-alias-label-tertiary);font-style:italic}"
-			+ ".dsh-pins_itemPin{flex:none;opacity:.55;font-size:11px}"
-			+ ".dsh-pins_itemX{flex:none;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:none;border-radius:6px;background:0 0;color:var(--dsw-alias-label-tertiary);cursor:pointer;font-size:11px;font-family:inherit}"
-			+ ".dsh-pins_itemX:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-state-error-primary)}"
-			+ ".dsh-pins_empty{padding:18px 12px;text-align:center;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:1.7}"
-			+ ".dsh-pins_error{padding:10px 12px;color:var(--dsw-alias-state-error-primary);font-size:12px}"
-			+ "";
-		var CSS_TAG_ID = "dsh-session-pins/styles";
-		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(CSS_TAG_ID) + "]") === null) {
-			var tag = document.createElement("style");
-			tag.dataset.pluginCss = CSS_TAG_ID;
-			tag.textContent = CSS;
-			document.head.appendChild(tag);
-		}
+		//#region upstream menu labels (detection contract, both locales)
+		/* The session row menu is identified by its fork item (the workspace
+		 * menu also has rename but never fork). Keep in sync with
+		 * dsh-client-ui-workspace dictionaries. */
+		var MENU_LABELS = [
+			{ rename: "重命名", fork: "分叉会话" },
+			{ rename: "Rename", fork: "Fork session" },
+		];
 		//#endregion
 
-		//#region shared pin store (RPC-backed, one per factory)
+		//#region pins store (host RPC; records are { sessionId, title, pinnedAt })
 		var connection = null;
-		var store = { pins: [], ready: false, error: null };
+		var sessionsSvc = null;
+		var pins = [];
 		var listeners = new Set();
-		function notify() { listeners.forEach(function (fn) { fn(); }); }
-		function setStore(patch) { store = Object.assign({}, store, patch); notify(); }
+		function emit() { listeners.forEach(function (fn) { try { fn(); } catch (_) {} }); }
 		function subscribe(fn) { listeners.add(fn); return function () { listeners.delete(fn); }; }
-		function getSnapshot() { return store; }
-		function usePins() { return useSyncExternalStore(subscribe, getSnapshot); }
-
 		function rpc(endpoint, payload) {
 			return connection.rpc.call("/session-pins", endpoint, payload || {}).then(function (result) {
 				if (result === null || typeof result !== "object") throw new Error("session-pins: empty response");
@@ -109,107 +82,228 @@ window.__ModuleLoader__.load({
 			});
 		}
 		function refresh() {
-			return rpc("list").then(function (v) {
-				setStore({ pins: v.pins || [], ready: true, error: null });
-			}).catch(function (e) {
-				setStore({ ready: true, error: String((e && e.message) || e) });
-			});
+			return rpc("list").then(function (value) {
+				pins = (value && value.pins) || [];
+				emit();
+			}).catch(function () {});
 		}
-		function pinSession(sessionId, title) {
-			return rpc("pin", { sessionId: sessionId, title: title || "" }).then(function (v) {
-				setStore({ pins: v.pins || [], error: null });
-			});
+		function isPinned(id) { return pins.some(function (p) { return p.sessionId === id; }); }
+		function togglePin(id, title) {
+			var call = isPinned(id) ? rpc("unpin", { sessionId: id }) : rpc("pin", { sessionId: id, title: title });
+			return call.then(function (value) {
+				pins = (value && value.pins) || [];
+				emit();
+			}).catch(function (err) { toast(tx("toast.error", { message: err.message })); });
 		}
-		function unpinSession(sessionId) {
-			return rpc("unpin", { sessionId: sessionId }).then(function (v) {
-				setStore({ pins: v.pins || [], error: null });
-			});
+		function liveTitle(id, fallback) {
+			try {
+				var row = sessionsSvc.list.getSnapshot().byId[id];
+				if (row && row.displayTitle) return row.displayTitle;
+			} catch (_) {}
+			return fallback || id;
 		}
-		function listSnapshot(sessions) {
-			try { return sessions && sessions.list && sessions.list.getSnapshot ? sessions.list.getSnapshot() : null; }
-			catch (_) { return null; }
-		}
-		function titleOf(sessions, sessionId) {
-			var snap = listSnapshot(sessions);
-			var row = snap && snap.byId ? snap.byId[sessionId] : null;
-			return row && row.displayTitle ? String(row.displayTitle) : "";
-		}
-		function isListed(sessions, sessionId) {
-			var snap = listSnapshot(sessions);
-			return Boolean(snap && snap.byId && snap.byId[sessionId]);
+		function sessionExists(id) {
+			try { return !!sessionsSvc.list.getSnapshot().byId[id]; } catch (_) { return false; }
 		}
 		//#endregion
 
-		//#region components
-		function PinToggle(props) {
-			var t = props.t;
-			var sessions = props.sessions;
-			var sessionId = props.sessionId;
-			var pinsState = usePins();
-			if (!sessionId) return null;
-			var pinned = pinsState.pins.some(function (p) { return p.sessionId === sessionId; });
-			var onClick = function () {
-				if (pinned) { unpinSession(sessionId); return; }
-				pinSession(sessionId, titleOf(sessions, sessionId));
-			};
-			return h("button", {
-				type: "button",
-				className: "dsh-pins_toggle",
-				"data-pinned": pinned,
-				title: pinned ? tx(t, "toggle.unpin") : tx(t, "toggle.pin"),
-				onClick: onClick,
-			}, "📌");
+		//#region toast (shared minimal style with drop-path-ref)
+		var toastEl = null;
+		var toastTimer = 0;
+		function toast(message) {
+			if (toastEl === null) {
+				toastEl = document.createElement("div");
+				toastEl.style.cssText = "position:fixed;left:50%;bottom:88px;transform:translateX(-50%);z-index:9999;"
+					+ "max-width:70vw;padding:8px 14px;border-radius:10px;pointer-events:none;"
+					+ "font:13px/1.5 -apple-system,BlinkMacSystemFont,sans-serif;"
+					+ "color:var(--dsw-alias-label-primary,#e8e8e8);"
+					+ "background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-1,#2c2c2e));"
+					+ "border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.35));"
+					+ "box-shadow:0 8px 28px rgba(0,0,0,.35);opacity:0;transition:opacity .18s ease";
+				document.body.appendChild(toastEl);
+			}
+			toastEl.textContent = message;
+			requestAnimationFrame(function () { toastEl.style.opacity = "1"; });
+			clearTimeout(toastTimer);
+			toastTimer = setTimeout(function () { if (toastEl) toastEl.style.opacity = "0"; }, 2400);
+		}
+		//#endregion
+
+		//#region pinned section (prepended above the sidebar browsing region)
+		var SECTION_ATTR = "data-dsh-pins-section";
+		var sectionEl = null;
+		var regionWidth = 999;
+
+		function findRegion() {
+			return document.querySelector('[class*="_regionArea"]');
 		}
 
-		function PinsPanelEntry(props) {
-			var t = props.t;
-			var sessions = props.sessions;
-			var pinsState = usePins();
-			var openState = useState(false);
-			var open = openState[0], setOpen = openState[1];
-			var rootRef = useRef(null);
-			useEffect(function () {
-				if (!open) return undefined;
-				var onDown = function (e) { if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false); };
-				document.addEventListener("mousedown", onDown);
-				return function () { document.removeEventListener("mousedown", onDown); };
-			}, [open]);
-			useEffect(function () {
-				/* first mount + every window refocus keeps the panel fresh */
-				refresh();
-				var onFocus = function () { refresh(); };
-				window.addEventListener("focus", onFocus);
-				return function () { window.removeEventListener("focus", onFocus); };
-			}, []);
-			var count = pinsState.pins.length;
-			var rows = pinsState.pins.map(function (p) {
-				var listed = isListed(sessions, p.sessionId);
-				var title = titleOf(sessions, p.sessionId) || p.title || p.sessionId;
-				var openIt = function () {
-					setOpen(false);
-					try { sessions && sessions.open && sessions.open(p.sessionId); } catch (_) { /* unknown id: row stays */ }
-				};
-				var removeIt = function (e) {
+		function renderSection() {
+			if (sectionEl === null) return;
+			sectionEl.style.display = (pins.length === 0 || regionWidth < 140) ? "none" : "block";
+			var list = sectionEl.querySelector("[data-dsh-pins-list]");
+			if (!list) return;
+			list.textContent = "";
+			pins.forEach(function (pin) {
+				var row = document.createElement("div");
+				row.style.cssText = "display:flex;align-items:center;gap:8px;min-height:32px;padding:4px 10px;margin:0 6px;"
+					+ "border-radius:8px;cursor:pointer;font-size:13px;line-height:18px;"
+					+ "color:var(--dsw-alias-label-primary,#e8e8e8)";
+
+				var icon = document.createElement("span");
+				icon.textContent = "📌";
+				icon.style.cssText = "flex:none;font-size:12px";
+				row.appendChild(icon);
+
+				var label = document.createElement("span");
+				var exists = sessionExists(pin.sessionId);
+				label.textContent = liveTitle(pin.sessionId, pin.title);
+				if (!exists) label.title = tx("row.missing");
+				label.style.cssText = "flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+					+ (exists ? "" : ";opacity:.45");
+				row.appendChild(label);
+
+				var unpin = document.createElement("button");
+				unpin.type = "button";
+				unpin.textContent = "✕";
+				unpin.title = tx("row.unpin");
+				unpin.style.cssText = "flex:none;border:none;background:0 0;cursor:pointer;font-size:11px;padding:2px 4px;"
+					+ "border-radius:6px;color:var(--dsw-alias-label-tertiary,#999);visibility:hidden";
+				unpin.onclick = function (e) {
 					e.stopPropagation();
-					unpinSession(p.sessionId);
+					togglePin(pin.sessionId, pin.title);
 				};
-				return h("div", { key: p.sessionId, className: "dsh-pins_item", "data-missing": !listed, role: "button", tabIndex: 0, onClick: openIt },
-					h("span", { className: "dsh-pins_itemPin" }, "📌"),
-					h("span", { className: "dsh-pins_itemTitle", title: title }, title + (listed ? "" : " " + tx(t, "panel.missing"))),
-					h("button", { type: "button", className: "dsh-pins_itemX", title: tx(t, "toggle.unpin"), onClick: removeIt }, "✕"));
+				row.appendChild(unpin);
+
+				row.onmouseenter = function () {
+					row.style.background = "var(--dsw-alias-state-hover,rgba(128,128,128,.14))";
+					unpin.style.visibility = "visible";
+				};
+				row.onmouseleave = function () {
+					row.style.background = "transparent";
+					unpin.style.visibility = "hidden";
+				};
+				row.onclick = function () {
+					if (sessionExists(pin.sessionId)) sessionsSvc.open(pin.sessionId);
+				};
+				list.appendChild(row);
 			});
-			return h("div", { className: "dsh-pins_popWrap", ref: rootRef },
-				open && h("div", { className: "dsh-pins_pop", role: "menu" },
-					pinsState.error !== null
-						? h("div", { className: "dsh-pins_error" }, tx(t, "panel.error", { message: pinsState.error }))
-						: rows.length === 0
-							? h("div", { className: "dsh-pins_empty" }, tx(t, "panel.empty"))
-							: rows),
-				h("button", { type: "button", className: "dsh-pins_row", onClick: function () { setOpen(!open); } },
-					h("span", { className: "dsh-pins_rowIcon" }, "📌"),
-					h("span", { className: "dsh-pins_rowText" },
-						h("span", { className: "dsh-pins_rowLabel" }, tx(t, "panel.label")),
-						h("span", { className: "dsh-pins_rowSub" }, String(count)))));
+		}
+
+		function ensureSection() {
+			var region = findRegion();
+			if (region === null) return;
+			if (sectionEl !== null && sectionEl.isConnected && sectionEl.parentElement === region) return;
+			sectionEl = document.createElement("section");
+			sectionEl.setAttribute(SECTION_ATTR, "");
+			sectionEl.style.cssText = "flex:none;padding:4px 0 6px;border-bottom:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.18));margin-bottom:4px";
+			var head = document.createElement("div");
+			head.setAttribute("data-dsh-pins-head", "");
+			head.textContent = tx("section.label");
+			head.style.cssText = "padding:2px 16px 4px;font-size:11px;font-weight:600;letter-spacing:.04em;"
+				+ "color:var(--dsw-alias-label-tertiary,#999)";
+			sectionEl.appendChild(head);
+			var list = document.createElement("div");
+			list.setAttribute("data-dsh-pins-list", "");
+			sectionEl.appendChild(list);
+			region.insertBefore(sectionEl, region.firstChild);
+			renderSection();
+		}
+		//#endregion
+
+		//#region session row menu injection
+		var processedMenus = new WeakSet();
+
+		function findForkButtons() {
+			var out = [];
+			var buttons = document.querySelectorAll("button");
+			for (var i = 0; i < buttons.length; i++) {
+				var text = (buttons[i].textContent || "").trim();
+				for (var j = 0; j < MENU_LABELS.length; j++) {
+					if (text === MENU_LABELS[j].fork) { out.push(buttons[i]); break; }
+				}
+			}
+			return out;
+		}
+
+		/** The session whose row menu is open: the row carries the menuOpen
+		 *  class; its title span matches exactly one session in the live list
+		 *  (ambiguous titles → skip, the menu simply stays stock). */
+		function openMenuSession() {
+			var row = document.querySelector('[class*="_menuOpen"]');
+			if (row === null) return null;
+			var titleEl = row.querySelector('[class*="_title"]');
+			var title = titleEl ? (titleEl.textContent || "").trim() : "";
+			if (!title) return null;
+			var snap = sessionsSvc.list.getSnapshot();
+			var ids = Object.keys(snap.byId || {});
+			var match = null;
+			for (var i = 0; i < ids.length; i++) {
+				var s = snap.byId[ids[i]];
+				if ((s.displayTitle || "").trim() === title) {
+					if (match !== null) return null; // ambiguous title — leave the menu stock
+					match = { id: ids[i], title: title };
+				}
+			}
+			return match;
+		}
+
+		function injectMenuItem(forkButton) {
+			var menu = forkButton.parentElement;
+			while (menu && menu.querySelectorAll("button").length < 2) menu = menu.parentElement;
+			if (menu === null || processedMenus.has(menu)) return;
+			processedMenus.add(menu);
+			var session = openMenuSession();
+			if (session === null) return;
+			var renameBtn = null;
+			var buttons = menu.querySelectorAll("button");
+			for (var i = 0; i < buttons.length; i++) {
+				var text = (buttons[i].textContent || "").trim();
+				for (var j = 0; j < MENU_LABELS.length; j++) {
+					if (text === MENU_LABELS[j].rename) { renameBtn = buttons[i]; break; }
+				}
+				if (renameBtn) break;
+			}
+			if (renameBtn === null) return;
+
+			var item = renameBtn.cloneNode(true);
+			/* Replace the icon (first svg) with a pin glyph. */
+			var svg = item.querySelector("svg");
+			if (svg) {
+				var pin = document.createElement("span");
+				pin.textContent = "📌";
+				pin.style.cssText = "display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;font-size:12px";
+				svg.replaceWith(pin);
+			}
+			var labelSpan = item.querySelector("span:last-child") || item;
+			labelSpan.textContent = isPinned(session.id) ? tx("menu.unpin") : tx("menu.pin");
+			item.addEventListener("click", function (e) {
+				e.stopPropagation();
+				e.preventDefault();
+				togglePin(session.id, session.title);
+				/* Close the upstream menu: Escape bubbles to React's root listener. */
+				menu.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+			});
+			renameBtn.parentElement.insertBefore(item, renameBtn.nextSibling);
+		}
+
+		function scanMenus() {
+			var forks = findForkButtons();
+			for (var i = 0; i < forks.length; i++) injectMenuItem(forks[i]);
+		}
+		//#endregion
+
+		//#region observers (throttled; self-healing)
+		var observer = null;
+		var resizeObserver = null;
+		var scanTimer = 0;
+		function scheduleScan() {
+			if (scanTimer) return;
+			scanTimer = setTimeout(function () {
+				scanTimer = 0;
+				ensureSection();
+				scanMenus();
+			}, 200);
 		}
 		//#endregion
 
@@ -218,31 +312,41 @@ window.__ModuleLoader__.load({
 			ctx.effect(function () {
 				return ctx.locale.register(NS, { zh: zh, en: en });
 			}, "session-pins: dictionaries");
-			var t = ctx.locale.bind(NS);
+			tRef = ctx.locale.bind(NS);
 			connection = ctx.connection;
-			/* Warm the store so the header toggle paints the right state. */
+			sessionsSvc = ctx.sessions;
+
 			refresh();
-			ctx.slots.inject("conversation.session.header.actions", function () {
-				return ctx.slots.register({
-					name: "conversation.session.header.actions",
-					id: "session-pins-toggle",
-					order: 0,
-					locale: NS,
-					inject: function () { return { sessions: ctx.sessions }; },
-				}, PinToggle);
-			});
-			ctx.slots.inject("sidebar.footer.action", function () {
-				return ctx.slots.register({
-					name: "sidebar.footer.action",
-					id: "session-pins",
-					order: 0,
-					locale: NS,
-					inject: function () { return { sessions: ctx.sessions }; },
-				}, PinsPanelEntry);
-			});
+			var unsubscribeSessions = sessionsSvc.list.subscribe(function () { renderSection(); });
+			var unsubscribePins = subscribe(renderSection);
+
+			observer = new MutationObserver(scheduleScan);
+			observer.observe(document.body, { childList: true, subtree: true });
+			var region = findRegion();
+			if (region) {
+				regionWidth = region.getBoundingClientRect().width || regionWidth;
+				resizeObserver = new ResizeObserver(function (entries) {
+					regionWidth = entries[0].contentRect.width;
+					renderSection();
+				});
+				resizeObserver.observe(region);
+			}
+			ensureSection();
+
+			ctx.effect(function () {
+				return function () {
+					if (observer) observer.disconnect();
+					if (resizeObserver) resizeObserver.disconnect();
+					unsubscribeSessions();
+					unsubscribePins();
+					clearTimeout(scanTimer);
+					if (sectionEl) sectionEl.remove();
+					if (toastEl) toastEl.remove();
+				};
+			}, "session-pins: dom");
 		}
 		exports.name = "dsh-session-pins";
-		exports.inject = ["slots", "locale", "connection", "sessions"];
+		exports.inject = ["locale", "connection", "sessions"];
 		exports.apply = apply;
 		//#endregion
 		return module.exports;
