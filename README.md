@@ -9,20 +9,24 @@
 > 三类行为差异全部复现——蓄意重复写入被幂等台账拦下（dup 1→0，3/3 轮）、`rm -rf` 被护栏拒绝且留痕、崩溃注入后恢复零重复且轨迹可审计；
 > 代价集中在强制重仪式任务（崩溃恢复/交付门禁中位 +629k/+339k tokens）——协议开销真实存在，适用场景是数小时的真实任务而非玩具任务。
 
-## 快速开始（fork 之后）
+## 快速开始
+
+前提：本机已装 [DSH](https://github.com/deepseek-ai)（`dsh` 命令可用）和 Node.js 20+（跑评测体系需 22+）。不需要 fork，不改 DSH 本体。
 
 ```bash
-git clone <your-fork> && cd DSH-MUSE
-node bin/install.mjs install        # 安装到 ~/.dsh 的 web profile（幂等）
-# 重启 DSH，完成
+git clone https://github.com/smile-xuc/DSH-MUSE.git && cd DSH-MUSE
+node bin/install.mjs install
 ```
+
+重启 DSH 即完成。装好后你会看到：会话顶部多出「Muse 工作台」标签页和进度胶囊、会话标题栏的 📌 置顶开关、侧栏底部的「置顶会话」面板与 token 统计行。
 
 ```bash
-node bin/install.mjs status         # 查看安装状态
-node bin/install.mjs uninstall      # 完整卸载（只删自己创建的东西）
+node bin/install.mjs status                          # 查看安装状态
+node bin/install.mjs install --profile <名字>        # 默认装入 web profile，可指定其他
+node bin/install.mjs uninstall                       # 完整卸载（只删自己创建的东西）
 ```
 
-> ⚠️ **默认安全姿态（务必知晓）**：安装后护栏默认启用 `ALLOW_GIT_PUSH_SAFE` 白名单——**独立的、非强制的 `git push`（如 `git push origin main`，含 `cd <目录> &&` 前缀与 `git -C <目录>` 形式）从"需人工审批"降级为"自动入账直接执行"**，因为对个人研发工具而言日常 push 是高频例行操作。`--force`/`-f`/`--delete`/`--mirror`、以及任何带 `;`/`&&`/`|`/换行/命令替换的链式命令**仍然强制审批**（白名单锚定整条命令，无法被拼接洗白，43+ 个标注用例在 CI 守门）。如需恢复严格模式（一切 push 都要审批）：删掉 profile `cordis.patch.yml` 标记块里 `muse-guardrails` 条目的 `config` 两行即可。
+> ⚠️ **默认安全姿态（务必知晓）**：安装后护栏默认启用 `ALLOW_GIT_PUSH_SAFE` 白名单——**独立的、非强制的 `git push`（如 `git push origin main`，含 `cd <目录> &&` 前缀与 `git -C <目录>` 形式）从"需人工审批"降级为"自动入账直接执行"**，因为对个人研发工具而言日常 push 是高频例行操作。`--force`/`-f`/`--delete`/`--mirror`、以及任何带 `;`/`&&`/`|`/换行/命令替换的链式命令**仍然强制审批**（白名单锚定整条命令，无法被拼接洗白，49+22 个标注用例在 CI 守门）。如需恢复严格模式（一切 push 都要审批）：删掉 profile `cordis.patch.yml` 标记块里 `muse-guardrails` 条目的 `config` 两行即可。
 
 安装器做的事（全部可逆）：把 `plugins/` 拷到 `~/.dsh/profiles/plugins/dsh-muse/`、`skills/` 拷到 `~/.dsh/skills/`、在目标 profile 的 `node_modules` 建符号链接、在 `cordis.patch.yml` 插入 `# >>> dsh-muse >>>` 标记块。不碰 DSH 运行时的任何文件。
 
@@ -61,7 +65,7 @@ node bin/install.mjs uninstall      # 完整卸载（只删自己创建的东西
 
 - `plugins/dsh-muse-ui/lib/client.js` 是**已提交的构建产物**（esbuild 工厂格式，external 仅用浏览器模块表基线），clone 后无需构建即可安装。
 - 仅在修改 `plugins/dsh-muse-ui/src/` 后需要重建：`npm install && npm run build:ui`（devDependency 仅 esbuild）。
-- 兼容性注记：client bundle 与 DSH `0.1.1-rc.x` 的浏览器模块表 API 绑定；DSH 大版本升级后若标签页消失/报错，先跑 `npm run build:ui` 重建，仍不行再对照 `conversation.view` 槽契约调整 `src/client.jsx`。
+- 兼容性注记：client bundle 与 DSH `0.1.1-rc.x` / `0.1.2-rc.x` 的浏览器模块表 API 绑定；DSH 大版本升级后若标签页消失/报错，先跑 `npm run build:ui` 重建，仍不行再对照 `conversation.view` 槽契约调整 `src/client.jsx`。
 
 ## 兼容性
 
@@ -70,7 +74,7 @@ node bin/install.mjs uninstall      # 完整卸载（只删自己创建的东西
 - **会话安全**：不向会话追加自定义事件类型（持久层会拒读未知类型）；审计走独立存储域（`~/.dsh/storages/{workunit,effects,evidence,eval,workshop}.json`）+ 转写自带 tool/call 对。
 - **环境**：Node ≥ 20（开发环境 22.x），macOS/Linux。
 - **审批策略**：若你的 DSH 配置为 `danger-full-access`（审批通道关闭），危险命令会被护栏**直接拒绝并入账**；恢复人工审批提示请调整 `settings.yaml` 的 permission preset。
-- **危险命令白名单（默认开启）**：`bin/manifest.mjs` 为 `muse-guardrails` 默认配置 `dangerousAllowPatterns: [ALLOW_GIT_PUSH_SAFE]`——每条 `git push` 仍逐笔入副作用台账（可审计），但不再每次要审批；`allowRepeat` 语义保证重复 push（参数相同但远端状态不同）不会被幂等键误杀。该正则在 `plugins/dsh-guardrails` 与 manifest 中各存一份（manifest 无法 import 插件），`build/check-repo.mjs` 强制两者**字节一致**，`eval/guardrails-labeled.json` 的 14 个白名单用例强制「该降级的降级、该门控的门控」。
+- **危险命令白名单（默认开启）**：`bin/manifest.mjs` 为 `muse-guardrails` 默认配置 `dangerousAllowPatterns: [ALLOW_GIT_PUSH_SAFE]`——每条 `git push` 仍逐笔入副作用台账（可审计），但不再每次要审批；`allowRepeat` 语义保证重复 push（参数相同但远端状态不同）不会被幂等键误杀。该正则在 `plugins/dsh-guardrails` 与 manifest 中各存一份（manifest 无法 import 插件），`build/check-repo.mjs` 强制两者**字节一致**，`eval/guardrails-labeled.json` 的 22 个白名单用例强制「该降级的降级、该门控的门控」。
 
 ## 性能差异（实测）
 
@@ -149,8 +153,9 @@ bin/manifest.mjs    插件/技能/补丁块清单 —— 单一事实源（insta
 bin/install.mjs     幂等安装/卸载/状态（含旧手工安装的自动迁移、UI bundle 存在性预警）
 build/build-ui.mjs  UI 客户端 bundle 构建（esbuild → cordis 工厂格式，产物随仓库提交）
 build/check-repo.mjs 仓库一致性检查（清单 ↔ 文件系统 ↔ 补丁块）
-eval/               自迭代评测：tasks（开销层 t01-t03 + 行为差异层 t04-t06）+ runner/compare/evolve
-                    + static-cost（静态 prompt 开销）+ check-guardrails（标注集回归）+ history
+eval/               自迭代评测：tasks（开销层 t01-t03 + 通用场景 t07-t09 + 行为差异层 t04-t06）
+                    + runner/compare/evolve/rescore + static-cost（静态 prompt 开销）
+                    + check-guardrails（标注集回归）+ history（批次只增不减）
 docs/DESIGN.md      设计契约（对象模型/存储域/护栏位/指标口径）
 docs/EVAL-METHODOLOGY.md 评测方法论：效度威胁模型 / 统计纪律 / 任务分层 / 运行规程
 ```
