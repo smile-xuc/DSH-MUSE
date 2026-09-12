@@ -536,17 +536,18 @@ export function apply(ctx) {
     });
   });
 
-  ctx.inject(['connection'], (connCtx) => {
-    if (!connCtx?.connection?.rpc?.handle) return;
-    connCtx.connection.rpc.handle(
-      '/muse-file',
-      async (endpoint, payload) => {
-        if (endpoint !== 'reveal') {
-          return { ok: false, error: { code: 'bad-request', message: `muse-file: unknown endpoint ${JSON.stringify(endpoint)}` } };
-        }
-        return revealPathInFinder(payload?.path, { cwd: payload?.cwd });
-      },
-      { authority: 'loopback' },
-    );
+  ctx.inject(['connection', 'webServer'], (connCtx) => {
+    const rpcHandler = async (endpoint, payload) => {
+      if (endpoint !== 'reveal') {
+        return { ok: false, error: { code: 'bad-request', message: `muse-file: unknown endpoint ${JSON.stringify(endpoint)}` } };
+      }
+      return revealPathInFinder(payload?.path, { cwd: payload?.cwd });
+    };
+
+    if (typeof connCtx?.connection?.register === 'function') {
+      connCtx.connection.register(connCtx, '/muse-file', rpcHandler);
+    } else if (connCtx?.connection?.rpc?.handle) {
+      connCtx.connection.rpc.handle('/muse-file', rpcHandler, { authority: 'loopback' });
+    }
   });
 }

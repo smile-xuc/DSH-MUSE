@@ -22,8 +22,8 @@
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'token-stats';
 
-/** Hard dependencies: the log seam and the browser RPC transport. */
-export const inject = ['sessionPersistence', 'connection'];
+/** Hard dependencies: the log seam and the browser RPC transport (with webServer for route mounting). */
+export const inject = ['sessionPersistence', 'connection', 'webServer'];
 
 /** RPC channel the client bundle calls. Must satisfy Connection's channel pattern. */
 const CHANNEL = '/token-stats';
@@ -200,20 +200,20 @@ export function apply(ctx) {
     return buildSummary(days, sessionsWithUsage, snapshots.length);
   }
 
-  ctx.connection.rpc.handle(
-    CHANNEL,
-    async (endpoint, _payload, signal) => {
-      if (endpoint !== 'summary') {
-        return { ok: false, error: { code: 'bad-request', message: `token-stats: unknown endpoint ${JSON.stringify(endpoint)}` } };
-      }
-      try {
-        return { ok: true, value: await collect(signal) };
-      } catch (error) {
-        return { ok: false, error: { code: 'internal', message: error instanceof Error ? error.message : String(error) } };
-      }
-    },
-    // Loopback-only: the panel is a local surface, and this fence pins the
-    // channel to loopback Host headers even on a LAN-serving deployment.
-    { authority: 'loopback' },
-  );
+  const rpcHandler = async (endpoint, _payload, signal) => {
+    if (endpoint !== 'summary') {
+      return { ok: false, error: { code: 'bad-request', message: `token-stats: unknown endpoint ${JSON.stringify(endpoint)}` } };
+    }
+    try {
+      return { ok: true, value: await collect(signal) };
+    } catch (error) {
+      return { ok: false, error: { code: 'internal', message: error instanceof Error ? error.message : String(error) } };
+    }
+  };
+
+  if (typeof ctx.connection?.register === 'function') {
+    ctx.connection.register(ctx, CHANNEL, rpcHandler);
+  } else if (ctx.connection?.rpc?.handle) {
+    ctx.connection.rpc.handle(CHANNEL, rpcHandler, { authority: 'loopback' });
+  }
 }

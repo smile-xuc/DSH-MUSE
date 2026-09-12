@@ -30,8 +30,8 @@ import { dirname, join } from 'node:path';
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'session-pins';
 
-/** Hard dependencies: the browser RPC transport (web assembly only). */
-export const inject = ['connection'];
+/** Hard dependencies: the browser RPC transport (with webServer for route mounting). */
+export const inject = ['connection', 'webServer'];
 
 /** RPC channel the client bundle calls. Must satisfy Connection's channel pattern. */
 const CHANNEL = '/session-pins';
@@ -93,44 +93,44 @@ export function apply(ctx) {
    * persists before answering so a crash never acknowledges an unsaved pin. */
   let store = loadStore(file);
 
-  ctx.connection.rpc.handle(
-    CHANNEL,
-    async (endpoint, payload) => {
-      const body = payload ?? {};
-      if (endpoint === 'list') {
-        return { ok: true, value: { pins: store.pins } };
+  const rpcHandler = async (endpoint, payload) => {
+    const body = payload ?? {};
+    if (endpoint === 'list') {
+      return { ok: true, value: { pins: store.pins } };
+    }
+    if (endpoint === 'pin') {
+      const sessionId = sanitizeSessionId(body.sessionId);
+      if (sessionId === null) {
+        return { ok: false, error: { code: 'bad-request', message: 'session-pins: pin needs a non-empty sessionId' } };
       }
-      if (endpoint === 'pin') {
-        const sessionId = sanitizeSessionId(body.sessionId);
-        if (sessionId === null) {
-          return { ok: false, error: { code: 'bad-request', message: 'session-pins: pin needs a non-empty sessionId' } };
-        }
-        const title = sanitizeTitle(body.title);
-        const existing = store.pins.find((p) => p.sessionId === sessionId);
-        if (existing !== undefined) {
-          /* Idempotent re-pin: refresh the title, keep the position. */
-          if (title !== '') existing.title = title;
-        } else {
-          store.pins.unshift({ sessionId, title, pinnedAt: Date.now() });
-          if (store.pins.length > MAX_PINS) store.pins.length = MAX_PINS;
-        }
-        saveStore(file, store);
-        return { ok: true, value: { pins: store.pins } };
+      const title = sanitizeTitle(body.title);
+      const existing = store.pins.find((p) => p.sessionId === sessionId);
+      if (existing !== undefined) {
+        /* Idempotent re-pin: refresh the title, keep the position. */
+        if (title !== '') existing.title = title;
+      } else {
+        store.pins.unshift({ sessionId, title, pinnedAt: Date.now() });
+        if (store.pins.length > MAX_PINS) store.pins.length = MAX_PINS;
       }
-      if (endpoint === 'unpin') {
-        const sessionId = sanitizeSessionId(body.sessionId);
-        if (sessionId === null) {
-          return { ok: false, error: { code: 'bad-request', message: 'session-pins: unpin needs a non-empty sessionId' } };
-        }
-        store.pins = store.pins.filter((p) => p.sessionId !== sessionId);
-        saveStore(file, store);
-        return { ok: true, value: { pins: store.pins } };
+      saveStore(file, store);
+      return { ok: true, value: { pins: store.pins } };
+    }
+    if (endpoint === 'unpin') {
+      const sessionId = sanitizeSessionId(body.sessionId);
+      if (sessionId === null) {
+        return { ok: false, error: { code: 'bad-request', message: 'session-pins: unpin needs a non-empty sessionId' } };
       }
-      return { ok: false, error: { code: 'bad-request', message: `session-pins: unknown endpoint ${JSON.stringify(endpoint)}` } };
-    },
-    // Loopback-only: pinning is a local surface, and this fence pins the
-    // channel to loopback Host headers even on a LAN-serving deployment.
-    { authority: 'loopback' },
-  );
+      store.pins = store.pins.filter((p) => p.sessionId !== sessionId);
+      saveStore(file, store);
+      return { ok: true, value: { pins: store.pins } };
+    }
+    return { ok: false, error: { code: 'bad-request', message: `session-pins: unknown endpoint ${JSON.stringify(endpoint)}` } };
+  };
+
+  if (typeof ctx.connection?.register === 'function') {
+    ctx.connection.register(ctx, CHANNEL, rpcHandler);
+  } else if (ctx.connection?.rpc?.handle) {
+    ctx.connection.rpc.handle(CHANNEL, rpcHandler, { authority: 'loopback' });
+  }
   logger.debug(`session-pins: serving ${CHANNEL} with ${store.pins.length} pin(s) from ${file}`);
 }
