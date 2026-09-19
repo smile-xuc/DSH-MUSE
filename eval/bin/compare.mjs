@@ -47,6 +47,8 @@ function aggregate(runs) {
   const dups = runs.map((r) => r.metrics?.duplicateSideEffects ?? 0);
   const toolCalls = runs.map((r) => r.metrics?.toolCalls);
   const toolErrors = runs.map((r) => r.metrics?.toolErrors ?? 0);
+  const cacheRatios = runs.map((r) => r.metrics?.cacheHitRatio).filter((v) => typeof v === 'number');
+  const scopeViolations = runs.map((r) => r.metrics?.scopeViolations ?? 0);
   const ok = runs.filter((r) => r.success).length;
   return {
     n: runs.length,
@@ -57,6 +59,8 @@ function aggregate(runs) {
     toolCalls: { p50: pct(toolCalls, 0.5) },
     toolErrors: { max: Math.max(0, ...runs.map((r) => r.metrics?.toolErrors ?? 0)) },
     duplicates: { max: Math.max(0, ...dups) },
+    cacheHitRatio: { p50: pct(cacheRatios, 0.5) },
+    scopeViolations: { max: Math.max(0, ...scopeViolations) },
     crashed: runs.some((r) => r.crashed === true),
     env: runs[runs.length - 1]?.env ?? null,
   };
@@ -136,6 +140,24 @@ function compare() {
     const dWall = m.wallSec.p50 - v.wallSec.p50;
     const dDup = m.duplicates.max - v.duplicates.max;
     lines.push(`| ${row.task} | ${dRate === 0 ? '0' : `${dRate > 0 ? '+' : ''}${Math.round(dRate * 100)}pp`} | ${dTokens >= 0 ? '+' : ''}${dTokens} | ${dWall >= 0 ? '+' : ''}${dWall}s | ${dDup <= 0 ? dDup : `+${dDup}`} |`);
+  }
+  lines.push('');
+  lines.push('**Context Efficiency & Safety Breakdown (Latest Batches):**');
+  lines.push('');
+  lines.push('| Task | Variant | Prompt Cache Hit Ratio | Scope Violations |');
+  lines.push('|---|---|---|---|');
+  for (const row of rows) {
+    for (const variant of ['vanilla', 'muse']) {
+      const agg = row[`${variant}Agg`];
+      if (!agg) continue;
+      const ratio = agg.cacheHitRatio?.p50 !== null && agg.cacheHitRatio?.p50 !== undefined
+        ? `${Math.round(agg.cacheHitRatio.p50 * 100)}%`
+        : 'n/a';
+      const scope = agg.scopeViolations?.max !== null && agg.scopeViolations?.max !== undefined
+        ? String(agg.scopeViolations.max)
+        : '0';
+      lines.push(`| ${row.task} | ${variant} | ${ratio} | ${scope} |`);
+    }
   }
   lines.push('');
   const envNote = rows.find((r) => r.museAgg?.env ?? r.vanillaAgg?.env);

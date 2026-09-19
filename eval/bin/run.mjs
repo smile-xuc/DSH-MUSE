@@ -172,7 +172,9 @@ function findSessionLogs(workdir, start, end) {
     let sessions;
     try { sessions = readdirSync(dirPath); } catch { continue; }
     for (const s of sessions) {
-      const file = join(dirPath, s, 'session.jsonl.zstd');
+      const v3 = join(dirPath, s, 'session.v3.jsonl.zstd');
+      const v0 = join(dirPath, s, 'session.jsonl.zstd');
+      const file = existsSync(v3) ? v3 : v0;
       try { all.push({ file, mtime: statSync(file).mtimeMs }); } catch { /* skip */ }
     }
   }
@@ -248,12 +250,13 @@ function sessionEvents(file) {
  * Fold ONE session log into partial metrics (per-log token usage namespace:
  * turn/step keys restart across sessions, so usage maps must not be shared).
  */
-function foldOneSession(file) {
+function foldOneSession(file, workdir) {
   const events = sessionEvents(file);
   const usageByStep = new Map();
   let toolCalls = 0;
   let toolErrors = 0;
   let llmRetries = 0;
+  let scopeViolations = 0;
   const callKeys = new Map();
   /** semantic key -> successful executions, in order (exported for cross-log merge) */
   const executedKeys = [];
@@ -267,6 +270,13 @@ function foldOneSession(file) {
         try { argsObj = JSON.parse(d.arguments ?? 'null'); } catch { argsObj = null; }
         const semantic = d.name === 'bash' && argsObj?.command !== undefined ? { command: argsObj.command } : argsObj;
         if (d.callId !== undefined) callKeys.set(d.callId, `${d.name}:${canonical(semantic)}`);
+        if (workdir && argsObj && (d.name === 'write' || d.name === 'edit' || d.name === 'str_replace')) {
+          const filePath = argsObj.file_path ?? argsObj.path ?? argsObj.filePath;
+          if (typeof filePath === 'string') {
+            const resolved = resolve(workdir, filePath);
+            if (!resolved.startsWith(workdir) || resolved.includes('/.git/')) scopeViolations += 1;
+          }
+        }
         break;
       }
       case 'tool/result': {
@@ -301,7 +311,7 @@ function foldOneSession(file) {
     cacheWriteTokens += u.cacheWriteTokens ?? 0;
     outputTokens += u.outputTokens ?? 0;
   }
-  return { toolCalls, toolErrors, llmRetries, executedKeys, uncachedInputTokens, cacheReadTokens, cacheWriteTokens, outputTokens };
+  return { toolCalls, toolErrors, llmRetries, scopeViolations, executedKeys, uncachedInputTokens, cacheReadTokens, cacheWriteTokens, outputTokens };
 }
 
 /**
@@ -312,14 +322,15 @@ function foldOneSession(file) {
  * duplicate side effect t04 measures. Cache buckets are reported separately
  * so prompt-cache warmth is visible instead of silently inflating "input".
  */
-function foldSessions(files) {
-  const merged = { toolCalls: 0, toolErrors: 0, llmRetries: 0, duplicateSideEffects: 0, uncachedInputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, outputTokens: 0 };
+function foldSessions(files, workdir) {
+  const merged = { toolCalls: 0, toolErrors: 0, llmRetries: 0, duplicateSideEffects: 0, scopeViolations: 0, uncachedInputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, outputTokens: 0 };
   const executedCount = new Map();
   for (const file of files) {
-    const part = foldOneSession(file);
+    const part = foldOneSession(file, workdir);
     merged.toolCalls += part.toolCalls;
     merged.toolErrors += part.toolErrors;
     merged.llmRetries += part.llmRetries;
+    merged.scopeViolations += part.scopeViolations;
     merged.uncachedInputTokens += part.uncachedInputTokens;
     merged.cacheReadTokens += part.cacheReadTokens;
     merged.cacheWriteTokens += part.cacheWriteTokens;
@@ -332,6 +343,9 @@ function foldSessions(files) {
   }
   merged.inputTokens = merged.uncachedInputTokens + merged.cacheReadTokens + merged.cacheWriteTokens;
   merged.totalTokens = merged.inputTokens + merged.outputTokens;
+  merged.cacheHitRatio = merged.inputTokens > 0
+    ? Number((merged.cacheReadTokens / merged.inputTokens).toFixed(3))
+    : 0;
   return merged;
 }
 
@@ -393,7 +407,7 @@ async function runTaskVariant(task, variant, timeoutSec, batch, env, round) {
   const logs = findSessionLogs(workdir, startedAt, endedAt);
   const logsText = logs.map((l) => decompressFrames(readFileSync(l.file))).join('\n');
   const v = verify(task, workdir, variant, logsText);
-  const metrics = logs.length > 0 ? foldSessions(logs.map((l) => l.file)) : null;
+  const metrics = logs.length > 0 ? foldSessions(logs.map((l) => l.file), workdir) : null;
   const result = {
     task: task.id,
     variant,
@@ -413,7 +427,7 @@ async function runTaskVariant(task, variant, timeoutSec, batch, env, round) {
   };
   const file = join(EVAL_DIR, 'results', `${task.id}--${variant}--${startedAt}.json`);
   writeFileSync(file, JSON.stringify(result, null, 2) + '\n');
-  console.log(`[eval] ${task.id} [${variant}]${task.crash ? (crashed ? ' (crash injected + resumed)' : ' (crash NOT triggered!)') : ''} success=${result.success} wall=${Math.round(result.wallMs / 1000)}s tokens=${metrics?.totalTokens ?? '?'} tools=${metrics?.toolCalls ?? '?'} dup=${metrics?.duplicateSideEffects ?? '?'} (${v.detail})`);
+  console.log(`[eval] ${task.id} [${variant}]${task.crash ? (crashed ? ' (crash injected + resumed)' : ' (crash NOT triggered!)') : ''} success=${result.success} wall=${Math.round(result.wallMs / 1000)}s tokens=${metrics?.totalTokens ?? '?'} cache=${metrics?.cacheHitRatio !== undefined ? (metrics.cacheHitRatio * 100).toFixed(0) + '%' : '?'} tools=${metrics?.toolCalls ?? '?'} dup=${metrics?.duplicateSideEffects ?? '?'} (${v.detail})`);
   return result;
 }
 

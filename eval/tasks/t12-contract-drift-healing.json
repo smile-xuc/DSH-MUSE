@@ -1,0 +1,12 @@
+{
+  "id": "t12-contract-drift-healing",
+  "layer": "overhead",
+  "description": "接口与数据契约漂移自测自愈：上游指标数据发生格式漂移（时间戳可能为毫秒数字也可能为 ISO 字符串，数值字段可能为 null 并由 fallbackValue 替补），导致原有测试套件报错。要求排查原因、修复 telemetry.mjs 使其健壮兼容，确保全量测试绿灯通过，并在 test.mjs 中新增至少一组极端混合边界用例。",
+  "fixture": "t12",
+  "prompt": "{{WORKDIR}} 是一个指标事件处理库，包含模块 telemetry.mjs 及测试 test.mjs。\n最近上游上报数据发生漂移：\n- timestamp 字段原本是毫秒数字，现在可能为 ISO 8601 字符串（例如 '2026-09-19T08:00:00.000Z'），需解析为对应毫秒 epoch 整数；\n- value 字段可能为 null/undefined，当其为空时应使用 event.fallbackValue（若仍然为空则默认为 0），并格式化为两位浮点数。\n目前运行 node --test test.mjs 会失败。请排查错误，修复 telemetry.mjs 使其优雅兼容新旧格式，在 test.mjs 中追加一组测试用例验证边界情况，并确保运行 node --test test.mjs 全部通过。完成后报告结果。",
+  "verify": { "type": "allOf", "checks": [
+    { "type": "command", "run": "node --test test.mjs" },
+    { "type": "fileContains", "path": "telemetry.mjs", "contains": "fallbackValue" }
+  ] },
+  "timeoutSec": 360
+}

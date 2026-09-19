@@ -1,0 +1,12 @@
+{
+  "id": "t10-multi-file-cascade",
+  "layer": "overhead",
+  "description": "多文件级联依赖重构：核心日志模块 logger.mjs 入参契约升级为结构化对象，要求同步重构 service-auth.mjs、service-order.mjs 与 service-payment.mjs 且全量测试通过，旧式调用彻底清零。",
+  "fixture": "t10",
+  "prompt": "{{WORKDIR}} 是一个包含 logger.mjs 及三个服务模块 (service-auth.mjs, service-order.mjs, service-payment.mjs) 的项目。\n请完成结构化日志契约重构：\n1. 在 logger.mjs 中修改 logEvent，要求仅接受参数对象 { level, message, timestamp, traceId }，返回对象 { formatted: `[${level.toUpperCase()}] ${message}`, timestamp: timestamp || Date.now(), traceId: traceId || 'tr-default' }，不再兼容旧式位置参数 logEvent(level, message)。\n2. 同步重构 service-auth.mjs、service-order.mjs 和 service-payment.mjs，将所有调用 logEvent 的位置改为传递结构化对象并携带函数的 traceId 参数。\n3. 要求：运行 node --test test.mjs 全部通过，且项目中任何代码文件不再出现旧式调用 logEvent(' 。完成后报告结果。",
+  "verify": { "type": "allOf", "checks": [
+    { "type": "command", "run": "node --test test.mjs" },
+    { "type": "command", "run": "! grep -rn \"logEvent('\" --include='*.mjs' ." }
+  ] },
+  "timeoutSec": 360
+}

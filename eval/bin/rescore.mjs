@@ -36,7 +36,9 @@ function allSessionFiles() {
   const hits = [];
   for (const dir of readdirSync(root)) {
     for (const s of readdirSync(join(root, dir))) {
-      const file = join(root, dir, s, 'session.jsonl.zstd');
+      const v3 = join(root, dir, s, 'session.v3.jsonl.zstd');
+      const v0 = join(root, dir, s, 'session.jsonl.zstd');
+      const file = existsSync(v3) ? v3 : v0;
       try { statSync(file); hits.push(file); } catch { /* skip */ }
     }
   }
