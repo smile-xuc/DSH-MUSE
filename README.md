@@ -70,10 +70,14 @@ node bin/install.mjs uninstall                       # 完整卸载（只删自�
 
 ## 兼容性
 
-- **DSH 版本**：在 `0.1.1-rc.2` 上开发，并在 `0.1.1-rc.2` 与 `0.1.2-rc.1` 上实测通过（插件 peerDependencies 同时覆盖两者）。**升级到 0.1.2 需要 dsh-muse-bridge ≥ 0.1.3**：0.1.2 起转发的宿主事件要求无损 JSON 往返，bridge 0.1.2 及更早版本在可选字段写入 `undefined`，会导致带 muse 投影的历史会话无法加载（bridge 0.1.3 已修复并带回归测试）。另注意 0.1.2 的 `dsh web` 需要启动 token（裸 URL 返回 401），桌面壳必须透传官方完整启动 URL（参见 `desktop/`）。依赖的公共 seam：`@deepseek-ai/cordis`（Service/inject/effect）、`dsh-storage-domain`、`dsh-tools`（defineTool + tools/pre-execute、tools/result、tools/post-execute 瀑布）、`systemPrompt`、`approval`、`skills`、`sessionPersistence`、`sessionProjections`（bridge 投影）、`client-modules` 的 `dsh.client` 双面包声明（UI 插件）。主线升级后跑一遍 `eval`（见下）即可验证兼容。
+- **DSH 版本**：在 `0.1.1-rc.2`、`0.1.2-rc.1`、`0.1.5-rc.1` 及 **`0.1.6-alpha.2`** 上实测通过（插件 peerDependencies 覆盖 `>=0.1.1-rc.2 <0.2.0`）。
+  - **0.1.5+ 句柄模型兼容**：0.1.5 起 `ctx.sessionPersistence` 从 `listSnapshots()` / `readFrom()` 重构为句柄模式 `list()` 与 `open(id, 'read')` / `handle.read()` / `handle.close()`。`dsh-token-stats` 与 `dsh-eval` 均已抽象双模驱动，自动探测并优先使用句柄模式，同时无缝兼容 0.1.2 旧接口。
+  - **RPC 错误契约**：适配 `@deepseek-ai/dsh-client-connection` 强 schema 校验，所有错误响应规范补齐 `details: {}`，彻底避免客户端抛出 `invalid server-response failure`。
+  - **Web 插件注入**：在 Cordis 4 下统一显式声明 `webServer` 依赖注入，保证回环 RPC 路由挂载顺序。
+  - **0.1.2+ 认证与桌面壳**：0.1.2 起 `dsh web` 需要启动 token（裸 URL 返回 401），macOS 原生桌面壳（`desktop/`）透传官方启动 URL 并由 WKWebView 自动完成 Cookie 交换认证。
 - **零冲突保证**：不修改/不重打包 DSH 任何文件；全部通过 profile 的 `cordis.patch.yml` 标记块挂载，`uninstall` 精确移除。
 - **会话安全**：不向会话追加自定义事件类型（持久层会拒读未知类型）；审计走独立存储域（`~/.dsh/storages/{workunit,effects,evidence,eval,workshop}.json`）+ 转写自带 tool/call 对。
-- **环境**：Node ≥ 20（开发环境 22.x），macOS/Linux。
+- **环境**：Node ≥ 20（开发与系统 CLI 推荐 Node 22+ / 23+），macOS/Linux。
 - **审批策略**：若你的 DSH 配置为 `danger-full-access`（审批通道关闭），危险命令会被护栏**直接拒绝并入账**；恢复人工审批提示请调整 `settings.yaml` 的 permission preset。
 - **危险命令白名单（默认开启）**：`bin/manifest.mjs` 为 `muse-guardrails` 默认配置 `dangerousAllowPatterns: [ALLOW_GIT_PUSH_SAFE]`——每条 `git push` 仍逐笔入副作用台账（可审计），但不再每次要审批；`allowRepeat` 语义保证重复 push（参数相同但远端状态不同）不会被幂等键误杀。该正则在 `plugins/dsh-guardrails` 与 manifest 中各存一份（manifest 无法 import 插件），`build/check-repo.mjs` 强制两者**字节一致**，`eval/guardrails-labeled.json` 的 22 个白名单用例强制「该降级的降级、该门控的门控」。
 
@@ -150,6 +154,7 @@ plugins/            十一个插件（独立 npm 包形态，peerDeps 钉住 DSH
                     六个 Muse 控制面 + dsh-muse-bridge（会话投影桥）+ dsh-muse-ui（浏览器端工作台）
                     + dsh-token-stats（侧栏 token 统计，仅 web）+ dsh-session-pins（会话置顶，仅 web）
                     + dsh-drop-path-ref（拖放非图片文件自动转为路径引用，仅 web）
+desktop/            macOS 原生桌面 App 壳（Swift + WKWebView、构建脚本、安全备份与端到端自动化校验）
 skills/             muse-orchestrator 编排纪律 skill
 bin/manifest.mjs    插件/技能/补丁块清单 —— 单一事实源（install、eval setup、CI 检查共用）
 bin/install.mjs     幂等安装/卸载/状态（含旧手工安装的自动迁移、UI bundle 存在性预警）
