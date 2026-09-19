@@ -341,8 +341,14 @@ final class HarnessApp: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNav
                 self.log("native UI ready: \(raw)")
                 if let path = self.snapshotPath {
                     let args = CommandLine.arguments
+                    let delayIndex = args.firstIndex(of: "--smoke-delay")
+                    let delay = (delayIndex != nil && delayIndex! + 1 < args.count) ? (Double(args[delayIndex! + 1]) ?? 0.0) : 0.0
                     if let index = args.firstIndex(of: "--smoke-history-title"), index + 1 < args.count {
                         self.verifyHistory(args[index + 1], path: path, current: current)
+                    } else if delay > 0 {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                            self.saveSnapshot(path)
+                        }
                     } else {
                         self.saveSnapshot(path)
                     }

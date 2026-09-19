@@ -13,12 +13,15 @@ snapshot = pathlib.Path(sys.argv[2]).resolve()
 log = pathlib.Path.home() / 'Library/Application Support/ai.deepseek.harness/native-launcher.log'
 offset = log.stat().st_size if log.exists() else 0
 snapshot.unlink(missing_ok=True)
-history_args = []
+extra_args = []
 if '--smoke-history-title' in sys.argv:
     index = sys.argv.index('--smoke-history-title')
-    history_args = ['--smoke-history-title', sys.argv[index + 1]]
+    extra_args.extend(['--smoke-history-title', sys.argv[index + 1]])
+if '--smoke-delay' in sys.argv:
+    index = sys.argv.index('--smoke-delay')
+    extra_args.extend(['--smoke-delay', sys.argv[index + 1]])
 process = subprocess.Popen(
-    [str(bundle / 'Contents/MacOS/deepseek-harness'), '--smoke-snapshot', str(snapshot), *history_args],
+    [str(bundle / 'Contents/MacOS/deepseek-harness'), '--smoke-snapshot', str(snapshot), *extra_args],
     start_new_session=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
 )
 leave_running = '--leave-running' in sys.argv
@@ -34,7 +37,7 @@ try:
             assert 'authenticated_url=true' in new, 'Launch token was dropped'
             assert 'main document HTTP 200' in new, 'Authenticated page did not return HTTP 200'
             assert 'native UI ready:' in new, 'No interactive DSH UI in native WebKit'
-            if history_args:
+            if '--smoke-history-title' in sys.argv:
                 assert 'native history ready:' in new, 'Historical conversation did not remain open'
                 print('PASS: historical session opens with its selected sidebar row and messages intact')
             port = int(re.search(r'navigation requested port=(\d+)', new).group(1))

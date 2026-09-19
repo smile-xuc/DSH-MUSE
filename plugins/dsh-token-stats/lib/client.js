@@ -344,7 +344,7 @@ window.__ModuleLoader__.load({
 			var today = stats !== null ? stats.totals.today.total : 0;
 			var week = stats !== null ? stats.totals.thisWeek.total : 0;
 			var summary = stats === null
-				? t("meta.loading")
+				? (result.error ? (wide ? t("meta.error", { message: result.error }) : "加载失败") : t("meta.loading"))
 				: today === 0 && week === 0
 					? t("row.empty")
 					: t("row.today", { value: formatCompact(today) }) + " · " + t("row.week", { value: formatCompact(week) });

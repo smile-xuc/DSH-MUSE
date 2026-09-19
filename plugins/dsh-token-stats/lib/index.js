@@ -68,12 +68,45 @@ function weekKey(time) {
 }
 
 /**
- * Fold one session's stored events into per-step usage samples. `readFrom`
- * is a detached physical read (no recovery, no mutation of the log), safe to
- * run against live sessions; it reflects the durable prefix only.
+ * Read raw session events, supporting both DSH 0.1.5+ (open/read/close handle)
+ * and DSH 0.1.2- (readFrom).
+ */
+async function readSessionEvents(ctx, id, signal) {
+  if (typeof ctx.sessionPersistence.open === 'function') {
+    const handle = await ctx.sessionPersistence.open(id, 'read', { signal });
+    try {
+      const res = await handle.read(0, undefined, { signal });
+      return res.events;
+    } finally {
+      await handle.close?.();
+    }
+  }
+  if (typeof ctx.sessionPersistence.readFrom === 'function') {
+    const res = await ctx.sessionPersistence.readFrom(id, 0, signal);
+    return res.events;
+  }
+  throw new Error('sessionPersistence has neither open() nor readFrom()');
+}
+
+/**
+ * List session snapshots, supporting both DSH 0.1.5+ (list) and DSH 0.1.2- (listSnapshots).
+ */
+async function listSnapshots(ctx, signal) {
+  if (typeof ctx.sessionPersistence.list === 'function') {
+    return await ctx.sessionPersistence.list({ signal });
+  }
+  if (typeof ctx.sessionPersistence.listSnapshots === 'function') {
+    return await ctx.sessionPersistence.listSnapshots(signal);
+  }
+  throw new Error('sessionPersistence has neither list() nor listSnapshots()');
+}
+
+/**
+ * Fold one session's stored events into per-step usage samples.
+ * Safe to run against live sessions; it reflects the durable prefix only.
  */
 async function readSessionUsage(ctx, id, signal) {
-  const { events } = await ctx.sessionPersistence.readFrom(id, 0, signal);
+  const events = await readSessionEvents(ctx, id, signal);
   /** @type {Map<string, {time: number, usage: object}>} turn:step -> newest sample */
   const steps = new Map();
   for (const event of events) {
@@ -155,7 +188,7 @@ export function apply(ctx) {
   const cache = new Map();
 
   async function collect(signal) {
-    const snapshots = await ctx.sessionPersistence.listSnapshots(signal);
+    const snapshots = await listSnapshots(ctx, signal);
     const seen = new Set();
     const days = new Map();
     let sessionsWithUsage = 0;
@@ -202,12 +235,12 @@ export function apply(ctx) {
 
   const rpcHandler = async (endpoint, _payload, signal) => {
     if (endpoint !== 'summary') {
-      return { ok: false, error: { code: 'bad-request', message: `token-stats: unknown endpoint ${JSON.stringify(endpoint)}` } };
+      return { ok: false, error: { code: 'bad-request', message: `token-stats: unknown endpoint ${JSON.stringify(endpoint)}`, details: {} } };
     }
     try {
       return { ok: true, value: await collect(signal) };
     } catch (error) {
-      return { ok: false, error: { code: 'internal', message: error instanceof Error ? error.message : String(error) } };
+      return { ok: false, error: { code: 'internal', message: error instanceof Error ? error.message : String(error), details: {} } };
     }
   };
 

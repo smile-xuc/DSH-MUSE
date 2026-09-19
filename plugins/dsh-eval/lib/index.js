@@ -160,6 +160,24 @@ function sumUsage(events, stepKeys, from, to) {
 /* Service                                                                   */
 /* ------------------------------------------------------------------------ */
 
+/** Read raw session events, supporting both DSH 0.1.5+ handle model and 0.1.2- readFrom. */
+async function readSessionEvents(sp, sessionId, signal) {
+  if (typeof sp.open === 'function') {
+    const handle = await sp.open(sessionId, 'read', { signal });
+    try {
+      const res = await handle.read(0, undefined, { signal });
+      return res.events;
+    } finally {
+      await handle.close?.();
+    }
+  }
+  if (typeof sp.readFrom === 'function') {
+    const res = await sp.readFrom(sessionId, 0, signal);
+    return res.events;
+  }
+  throw new Error('sessionPersistence has neither open() nor readFrom()');
+}
+
 /** Module-level handle — see dsh-workunit for why. */
 let evalInstance;
 
@@ -213,7 +231,7 @@ class Eval extends Service {
     const unit = await this.ctx.workunits.get(workunitId);
     if (!unit) throw new Error(`workunit '${workunitId}' not found`);
     const to = unit.completedAt;
-    const { events } = await this.ctx.sessionPersistence.readFrom(unit.sessionId, 0, signal);
+    const events = await readSessionEvents(this.ctx.sessionPersistence, unit.sessionId, signal);
     const fold = foldSessionEvents(events, unit.createdAt, to);
     const cost = sumUsage(events, undefined, unit.createdAt, to);
 
