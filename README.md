@@ -91,7 +91,7 @@ node bin/install.mjs uninstall                       # 完整卸载（只删自�
 
 ## 兼容性
 
-- **DSH 版本**：在 `0.1.1-rc.2`、`0.1.2-rc.1`、`0.1.5-rc.1` 及 **`0.1.6-alpha.2`** 上实测通过（插件 peerDependencies 覆盖 `>=0.1.1-rc.2 <0.2.0`）。
+- **DSH 版本**：在 `0.1.1-rc.2`、`0.1.2-rc.1`、`0.1.5-rc.1`、`0.1.6-alpha.2` 及 **`0.1.7-rc.2`** 上实测通过（插件 peerDependencies 覆盖 `>=0.1.1-rc.2 <0.2.0`）。
   - **0.1.5+ 句柄模型兼容**：0.1.5 起 `ctx.sessionPersistence` 从 `listSnapshots()` / `readFrom()` 重构为句柄模式 `list()` 与 `open(id, 'read')` / `handle.read()` / `handle.close()`。`dsh-token-stats` 与 `dsh-eval` 均已抽象双模驱动，自动探测并优先使用句柄模式，同时无缝兼容 0.1.2 旧接口。
   - **RPC 错误契约**：适配 `@deepseek-ai/dsh-client-connection` 强 schema 校验，所有错误响应规范补齐 `details: {}`，彻底避免客户端抛出 `invalid server-response failure`。
   - **Web 插件注入**：在 Cordis 4 下统一显式声明 `webServer` 依赖注入，保证回环 RPC 路由挂载顺序。
