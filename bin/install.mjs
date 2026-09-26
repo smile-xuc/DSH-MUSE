@@ -70,6 +70,17 @@ function cleanLegacy(home, profile) {
   }
 }
 
+/** Extract any non-muse configuration that was trapped between the markers. */
+function extractForeignEntries(inside) {
+  if (!inside) return '';
+  /* DSH's YAML editor appends new configuration before the trailing comment.
+   * If any non-muse top-level entries (e.g. llm-pi-ai or ui-settings-general)
+   * landed between the markers, salvage them outside the managed block so an
+   * update/reinstall/uninstall never deletes user configuration. */
+  const stripped = inside.replace(/(?:^|\n)[ \t]*- insert:\s*(?:\r?\n[ \t]+[^\r\n]*|\r?\n[ \t]*)*(?=\r?\n[^ \t\r\n]|$)/, '').trim();
+  return stripped ? `\n\n${stripped}\n` : '';
+}
+
 /** Insert or replace the managed block in a cordis.patch.yml text. */
 function upsertPatch(text) {
   /* DSH ships profiles with a bare `[]` placeholder as the whole document;
@@ -77,13 +88,10 @@ function upsertPatch(text) {
    * YAML and dsh refuses to boot the profile. */
   text = text.replace(/^[ \t]*\[][ \t]*\r?\n?/, '').replace(/\n[ \t]*\[][ \t]*(?=\r?\n|$)/g, '');
   if (text.includes(MARK_BEGIN)) {
-    const re = new RegExp(`${MARK_BEGIN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?${MARK_END.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n?`);
-    /* Function replacement, never a string: PATCH_BLOCK can carry regex
-     * patterns (the guardrails allowlist config) whose `$'`/`$&`/`$$`
-     * sequences String.replace would interpret as substitution escapes —
-     * a string replacement silently corrupted the block once config rows
-     * appeared (measured: the closing quote of the pattern vanished). */
-    return text.replace(re, () => PATCH_BLOCK);
+    const re = new RegExp(`${MARK_BEGIN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([\\s\\S]*?)${MARK_END.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n?`);
+    const match = text.match(re);
+    const foreign = match && match[1] ? extractForeignEntries(match[1]) : '';
+    return text.replace(re, () => `${PATCH_BLOCK}${foreign}`);
   }
   const sep = text.trim() === '' ? '' : '\n';
   return `${text}${sep}${PATCH_BLOCK}`;
@@ -92,8 +100,10 @@ function upsertPatch(text) {
 /** Remove the managed block (returns text unchanged when absent). */
 function removePatch(text) {
   if (!text.includes(MARK_BEGIN)) return text;
-  const re = new RegExp(`\\n?${MARK_BEGIN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?${MARK_END.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n?`);
-  const out = text.replace(re, () => '\n'); // function form: never interpret $ sequences
+  const re = new RegExp(`\\n?${MARK_BEGIN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([\\s\\S]*?)${MARK_END.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n?`);
+  const match = text.match(re);
+  const foreign = match && match[1] ? extractForeignEntries(match[1]) : '';
+  const out = text.replace(re, () => foreign || '\n'); // function form: never interpret $ sequences
   /* A file that held nothing but the managed block (empty or comments-only)
    * must go back to the shipped `[]` placeholder: the patch loader requires
    * a top-level YAML array, and an empty document fails to boot the profile. */
