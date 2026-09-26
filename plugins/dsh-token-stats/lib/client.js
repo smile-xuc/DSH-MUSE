@@ -19,7 +19,40 @@ window.__ModuleLoader__.load({
 		var useState = React.useState;
 		var useEffect = React.useEffect;
 		var useCallback = React.useCallback;
+		var useRef = React.useRef;
 		var h = React.createElement;
+		var IconData = primitives.IconDataOutlineRegular
+			|| primitives.IconDataOutlineMedium
+			|| primitives.IconDataOutline16
+			|| function (p) {
+				return h("svg", {
+					width: p.size || 16,
+					height: p.size || 16,
+					viewBox: "0 0 16 16",
+					fill: "none",
+					stroke: "currentColor",
+					strokeWidth: "1.5"
+				},
+					h("rect", { x: "2", y: "3", width: "12", height: "10", rx: "2" }),
+					h("line", { x1: "2", y1: "8", x2: "14", y2: "8" })
+				);
+			};
+		var IconRefresh = primitives.IconRefreshOutlineRegular
+			|| primitives.IconRefreshOutlineMedium
+			|| primitives.IconRefreshOutline14
+			|| function (p) {
+				return h("svg", {
+					width: p.size || 14,
+					height: p.size || 14,
+					viewBox: "0 0 16 16",
+					fill: "none",
+					stroke: "currentColor",
+					strokeWidth: "1.5"
+				},
+					h("path", { d: "M13.5 8A5.5 5.5 0 1 1 8 2.5c1.8 0 3.4.9 4.4 2.2" }),
+					h("path", { d: "M13.5 1.5v3.5H10" })
+				);
+			};
 
 		//#region styles
 		var CSS = ""
@@ -185,23 +218,28 @@ window.__ModuleLoader__.load({
 			var errState = useState(null);
 			var error = errState[0];
 			var setError = errState[1];
+			var mountedRef = useRef(true);
+			useEffect(function () {
+				mountedRef.current = true;
+				return function () {
+					mountedRef.current = false;
+				};
+			}, []);
 			var load = useCallback(function () {
-				var cancelled = false;
-				fetchStats().then(function (value) {
-					if (cancelled) return;
+				return fetchStats().then(function (value) {
+					if (!mountedRef.current) return;
 					setStats(value);
 					setError(null);
+					return value;
 				}, function (err) {
-					if (cancelled) return;
+					if (!mountedRef.current) return;
 					setError(err instanceof Error ? err.message : String(err));
 				});
-				return function () { cancelled = true; };
 			}, [fetchStats]);
 			useEffect(function () {
-				var dispose = load();
+				load();
 				var timer = window.setInterval(load, intervalMs);
 				return function () {
-					dispose();
 					window.clearInterval(timer);
 				};
 			}, [load, intervalMs]);
@@ -292,10 +330,9 @@ window.__ModuleLoader__.load({
 			var stats = props.stats;
 			useEffect(function () {
 				if (!props.open) return;
-				var dispose = props.reload();
+				props.reload();
 				var timer = window.setInterval(props.reload, 30000);
 				return function () {
-					dispose();
 					window.clearInterval(timer);
 				};
 			}, [props.open, props.reload]);
@@ -325,7 +362,7 @@ window.__ModuleLoader__.load({
 							h("span", { className: "dsh-token-stats_metaSpacer" }),
 							h("span", null, t("meta.updated", { time: formatClock(stats.generatedAt) })),
 							h("button", { type: "button", className: "dsh-token-stats_refresh", onClick: function () { props.reload(); } },
-								h(primitives.IconRefreshOutline14, { size: 12 }),
+								h(IconRefresh, { size: 12 }),
 								t("meta.refresh")))),
 				props.error !== null && h("div", { className: "dsh-token-stats_error" }, t("meta.error", { message: props.error })));
 		}
@@ -362,7 +399,7 @@ window.__ModuleLoader__.load({
 						onClick: function () { setOpen(!open); }
 					},
 						h("span", { className: "dsh-token-stats_badgeIcon" },
-							h(primitives.IconDataOutline16, { size: wide ? 15 : 17 })),
+							h(IconData, { size: wide ? 15 : 17 })),
 						wide && h("span", { className: "dsh-token-stats_badgeText" },
 							h("span", { className: "dsh-token-stats_badgeLabel" }, t("row.label")),
 							h("span", { className: "dsh-token-stats_badgeValue" }, summary)))),

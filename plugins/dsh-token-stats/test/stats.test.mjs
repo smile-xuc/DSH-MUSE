@@ -109,3 +109,110 @@ test('rpc error envelope contains details object conforming to client-connection
   assert.notEqual(errRes2.error.details, null);
   assert.match(errRes2.error.message, /storage read failed/);
 });
+
+test('disk cache persists across instances and skips re-reading unchanged sessions', async (t) => {
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const fs = await import('node:fs');
+
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-token-stats-test-'));
+  const cacheFile = path.join(tmpDir, 'cache.json');
+  t.after(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  let readCount = 0;
+  const mockPersistence = {
+    async list() {
+      return [{ header: { id: 'sess-cache-1' }, revision: 'rev-A' }];
+    },
+    async open(id) {
+      readCount += 1;
+      return {
+        async read() {
+          return { events: sampleEvents };
+        },
+        async close() {},
+      };
+    },
+  };
+
+  // Run 1: Cold cache -> reads session and writes disk cache
+  let handler1;
+  const ctx1 = {
+    logger: () => ({ warn: () => {}, info: () => {}, error: () => {} }),
+    sessionPersistence: mockPersistence,
+    config: { cacheFile },
+    connection: {
+      register: (_owner, channel, h) => { if (channel === '/token-stats') handler1 = h; },
+      rpc: { handle: (channel, h) => { if (channel === '/token-stats') handler1 = h; } }
+    },
+  };
+  apply(ctx1);
+  const res1 = await handler1('summary', {});
+  assert.equal(res1.ok, true);
+  assert.equal(readCount, 1);
+  assert.ok(fs.existsSync(cacheFile), 'cache file should be written');
+
+  // Run 2: Fresh instance with same cacheFile -> cache hit, zero reads
+  let handler2;
+  const ctx2 = {
+    logger: () => ({ warn: () => {}, info: () => {}, error: () => {} }),
+    sessionPersistence: mockPersistence,
+    config: { cacheFile },
+    connection: {
+      register: (_owner, channel, h) => { if (channel === '/token-stats') handler2 = h; },
+      rpc: { handle: (channel, h) => { if (channel === '/token-stats') handler2 = h; } }
+    },
+  };
+  apply(ctx2);
+  const res2 = await handler2('summary', {});
+  assert.equal(res2.ok, true);
+  assert.equal(readCount, 1, 'unchanged session should not be re-read');
+  assert.equal(res2.value.totals.all.total, 33);
+});
+
+test('corrupted cache file degrades gracefully to cold read', async (t) => {
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const fs = await import('node:fs');
+
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-token-stats-corrupt-'));
+  const cacheFile = path.join(tmpDir, 'cache.json');
+  fs.writeFileSync(cacheFile, '{ not valid json', 'utf8');
+  t.after(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  let readCount = 0;
+  const mockPersistence = {
+    async list() {
+      return [{ header: { id: 'sess-corrupt-1' }, revision: 'rev-B' }];
+    },
+    async open(id) {
+      readCount += 1;
+      return {
+        async read() {
+          return { events: sampleEvents };
+        },
+        async close() {},
+      };
+    },
+  };
+
+  let handler;
+  const ctx = {
+    logger: () => ({ warn: () => {}, info: () => {}, error: () => {} }),
+    sessionPersistence: mockPersistence,
+    config: { cacheFile },
+    connection: {
+      register: (_owner, channel, h) => { if (channel === '/token-stats') handler = h; },
+      rpc: { handle: (channel, h) => { if (channel === '/token-stats') handler = h; } }
+    },
+  };
+  apply(ctx);
+  const res = await handler('summary', {});
+  assert.equal(res.ok, true);
+  assert.equal(readCount, 1, 'corrupted cache should fall back to read');
+  assert.equal(res.value.totals.all.total, 33);
+});

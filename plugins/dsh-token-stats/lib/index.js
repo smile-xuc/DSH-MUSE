@@ -19,6 +19,10 @@
  * @module dsh-token-stats
  */
 
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { dirname, join } from 'node:path';
+
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'token-stats';
 
@@ -27,6 +31,56 @@ export const inject = ['sessionPersistence', 'connection', 'webServer'];
 
 /** RPC channel the client bundle calls. Must satisfy Connection's channel pattern. */
 const CHANNEL = '/token-stats';
+
+function cacheStorePath(config, ctx) {
+  if (config?.cacheFile) return config.cacheFile;
+  try {
+    if (ctx && typeof ctx === 'object' && ctx.config?.cacheFile) return ctx.config.cacheFile;
+  } catch {
+    // Cordis proxy throws if config is accessed without inject
+  }
+  if (process.env.DSH_TOKEN_STATS_CACHE) return process.env.DSH_TOKEN_STATS_CACHE;
+  if (process.env.NODE_TEST_CONTEXT !== undefined || (Array.isArray(process.argv) && process.argv.some((a) => typeof a === 'string' && a.includes('test')))) {
+    return null;
+  }
+  const home = process.env.DSH_HOME ?? join(homedir(), '.dsh');
+  return join(home, 'storages', 'token-stats-cache.json');
+}
+
+function loadDiskCache(file) {
+  const map = new Map();
+  if (!file) return map;
+  try {
+    if (!existsSync(file)) return map;
+    const raw = JSON.parse(readFileSync(file, 'utf8'));
+    if (raw && typeof raw.sessions === 'object' && raw.sessions !== null) {
+      for (const [id, entry] of Object.entries(raw.sessions)) {
+        if (entry && typeof entry.revision === 'string' && Array.isArray(entry.rows)) {
+          map.set(id, entry);
+        }
+      }
+    }
+  } catch {
+    // Gracefully degrade to empty cache on corrupt or unreadable file
+  }
+  return map;
+}
+
+function saveDiskCache(file, cacheMap) {
+  if (!file) return;
+  try {
+    mkdirSync(dirname(file), { recursive: true });
+    const tmp = `${file}.tmp-${process.pid}-${Date.now()}`;
+    const sessions = {};
+    for (const [id, entry] of cacheMap.entries()) {
+      sessions[id] = entry;
+    }
+    writeFileSync(tmp, JSON.stringify({ version: 1, sessions }), 'utf8');
+    renameSync(tmp, file);
+  } catch {
+    // Non-fatal if saving disk cache fails
+  }
+}
 
 /** One day bucket's disjoint token counters. */
 function zeroBuckets() {
@@ -182,39 +236,51 @@ function buildSummary(days, sessionsWithUsage, sessionCount) {
 }
 
 /** Register the aggregation RPC channel. */
-export function apply(ctx) {
+export function apply(ctx, config) {
   const logger = ctx.logger(name);
+  const cacheFile = cacheStorePath(config, ctx);
   /** sessionId -> { revision: string, rows: Array<{time, input, output, cacheRead, cacheWrite, total}> } */
-  const cache = new Map();
+  const cache = loadDiskCache(cacheFile);
 
   async function collect(signal) {
     const snapshots = await listSnapshots(ctx, signal);
     const seen = new Set();
-    const days = new Map();
-    let sessionsWithUsage = 0;
+    const uncached = [];
     for (const snapshot of snapshots) {
-      signal?.throwIfAborted();
       const id = snapshot.header.id;
       seen.add(id);
       const revision = String(snapshot.revision);
-      let entry = cache.get(id);
+      const entry = cache.get(id);
       if (entry === undefined || entry.revision !== revision) {
-        let rows;
-        let failed = false;
-        try {
-          rows = await readSessionUsage(ctx, id, signal);
-        } catch (error) {
-          // One unreadable log must not blank the whole panel; keep any prior cache.
-          failed = true;
-          logger.warn(`token-stats: skipping session ${id}: ${error instanceof Error ? error.message : String(error)}`);
-        }
-        if (failed) {
-          if (entry === undefined) continue;
-        } else {
-          entry = { revision, rows };
-          cache.set(id, entry);
-        }
+        uncached.push(snapshot);
       }
+    }
+
+    let dirty = false;
+    const CONCURRENCY = 16;
+    for (let i = 0; i < uncached.length; i += CONCURRENCY) {
+      signal?.throwIfAborted();
+      const chunk = uncached.slice(i, i + CONCURRENCY);
+      await Promise.all(
+        chunk.map(async (snapshot) => {
+          const id = snapshot.header.id;
+          const revision = String(snapshot.revision);
+          try {
+            const rows = await readSessionUsage(ctx, id, signal);
+            cache.set(id, { revision, rows });
+            dirty = true;
+          } catch (error) {
+            logger.warn(`token-stats: skipping session ${id}: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        })
+      );
+    }
+
+    const days = new Map();
+    let sessionsWithUsage = 0;
+    for (const snapshot of snapshots) {
+      const entry = cache.get(snapshot.header.id);
+      if (entry === undefined) continue;
       if (entry.rows.length > 0) sessionsWithUsage += 1;
       for (const row of entry.rows) {
         const key = dayKey(row.time);
@@ -225,11 +291,19 @@ export function apply(ctx) {
         }
         addInto(bucket, row);
       }
-      // Long logs parse synchronously; yield between sessions so a first scan
-      // never stalls the host event loop.
-      await new Promise((resolve) => setImmediate(resolve));
     }
-    for (const id of [...cache.keys()]) if (!seen.has(id)) cache.delete(id);
+
+    for (const id of [...cache.keys()]) {
+      if (!seen.has(id)) {
+        cache.delete(id);
+        dirty = true;
+      }
+    }
+
+    if (dirty && cacheFile) {
+      saveDiskCache(cacheFile, cache);
+    }
+
     return buildSummary(days, sessionsWithUsage, snapshots.length);
   }
 
