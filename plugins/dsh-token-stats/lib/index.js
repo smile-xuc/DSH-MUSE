@@ -318,9 +318,119 @@ export function apply(ctx, config) {
     }
   };
 
-  if (typeof ctx.connection?.register === 'function') {
-    ctx.connection.register(ctx, CHANNEL, rpcHandler);
-  } else if (ctx.connection?.rpc?.handle) {
-    ctx.connection.rpc.handle(CHANNEL, rpcHandler, { authority: 'loopback' });
+function mountRpcChannel(ctx, channel, rpcHandler, options = {}) {
+  if (ctx.webServer && typeof ctx.webServer.register === 'function') {
+    const route = {
+      kind: 'prefix',
+      path: channel,
+      handler: async (req, res) => {
+        if (options.authority === 'loopback') {
+          const host = (req.headers.host || '').split(':')[0].toLowerCase();
+          if (host !== '127.0.0.1' && host !== 'localhost' && host !== '::1' && host !== '[::1]') {
+            res.writeHead(403);
+            res.end('forbidden: loopback authority required');
+            return;
+          }
+        }
+
+        const conn = ctx.get ? ctx.get('connection') : ctx.connection;
+        if (conn && typeof conn.admit === 'function') {
+          const admission = conn.admit(req);
+          if (admission && 'rejection' in admission) {
+            res.writeHead(admission.rejection);
+            res.end(admission.rejection === 401 ? 'unauthorized' : 'forbidden');
+            return;
+          }
+        } else if (conn && typeof conn.requestRejection === 'function') {
+          const rejection = conn.requestRejection(req);
+          if (rejection !== undefined) {
+            res.writeHead(rejection);
+            res.end(rejection === 401 ? 'unauthorized' : 'forbidden');
+            return;
+          }
+        }
+
+        if (req.method !== 'POST') {
+          res.writeHead(404);
+          res.end('not found');
+          return;
+        }
+
+        const url = new URL(req.url, 'http://127.0.0.1');
+        if (!url.pathname.startsWith(channel + '/')) {
+          res.writeHead(404);
+          res.end('not found');
+          return;
+        }
+        const endpoint = url.pathname.slice(channel.length + 1);
+
+        const chunks = [];
+        let bodyLength = 0;
+        const MAX_BYTES = 50 * 1024 * 1024;
+        req.on('data', (c) => {
+          bodyLength += c.length;
+          if (bodyLength <= MAX_BYTES) chunks.push(c);
+        });
+
+        await new Promise((resolve) => req.on('end', resolve));
+        if (bodyLength > MAX_BYTES) {
+          res.writeHead(413);
+          res.end('payload too large');
+          return;
+        }
+
+        let body = {};
+        try {
+          body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        } catch {
+          res.writeHead(400);
+          res.end('bad JSON');
+          return;
+        }
+
+        const rpcId = body.rpcId || '';
+        const payload = body.payload ?? {};
+
+        try {
+          const result = await rpcHandler(endpoint, payload);
+          const responseBody = JSON.stringify({
+            type: 'server-response',
+            rpcId,
+            result: result ?? { ok: true, value: null },
+          });
+          res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+          res.end(responseBody);
+        } catch (err) {
+          const responseBody = JSON.stringify({
+            type: 'server-response',
+            rpcId,
+            result: {
+              ok: false,
+              error: {
+                code: 'internal',
+                message: err instanceof Error ? err.message : String(err),
+                details: {},
+              },
+            },
+          });
+          res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+          res.end(responseBody);
+        }
+      },
+    };
+
+    if (typeof ctx.effect === 'function') {
+      return ctx.effect(() => ctx.webServer.register(route), `rpc channel ${channel}`);
+    }
+    return ctx.webServer.register(route);
   }
+
+  if (typeof ctx.connection?.register === 'function') {
+    return ctx.connection.register(ctx, channel, rpcHandler);
+  } else if (ctx.connection?.rpc?.handle) {
+    return ctx.connection.rpc.handle(channel, rpcHandler, options);
+  }
+}
+
+  mountRpcChannel(ctx, CHANNEL, rpcHandler, { authority: 'loopback' });
 }

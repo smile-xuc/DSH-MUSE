@@ -22,7 +22,8 @@
     "eval:guardrails": "node eval/bin/check-guardrails.mjs"
   },
   "devDependencies": {
-    "esbuild": "^0.27.0"
+    "esbuild": "^0.27.0",
+    "zod": "^4.6.5"
   },
   "engines": {
     "node": ">=20"
