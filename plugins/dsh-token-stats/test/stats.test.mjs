@@ -216,3 +216,34 @@ test('corrupted cache file degrades gracefully to cold read', async (t) => {
   assert.equal(readCount, 1, 'corrupted cache should fall back to read');
   assert.equal(res.value.totals.all.total, 33);
 });
+
+test('dsh-token-stats works when handle.read() returns SessionEvent[] directly', async () => {
+  let handleClosed = false;
+  const mockPersistence = {
+    async list() {
+      return [{ header: { id: 'sess-direct-array' }, revision: 'rev-array-1' }];
+    },
+    async open(id) {
+      assert.equal(id, 'sess-direct-array');
+      return {
+        async read() {
+          return sampleEvents; // Returns array directly
+        },
+        async close() {
+          handleClosed = true;
+        },
+      };
+    },
+  };
+
+  const { handler } = createMockContext(mockPersistence);
+  assert.ok(handler, 'rpc handler should be registered');
+
+  const res = await handler('summary', {});
+  assert.equal(res.ok, true);
+  assert.ok(handleClosed, 'session handle should be closed after read');
+  assert.equal(res.value.sessionCount, 1);
+  assert.equal(res.value.sessionsWithUsage, 1);
+  assert.equal(res.value.totals.all.total, 33);
+});
+

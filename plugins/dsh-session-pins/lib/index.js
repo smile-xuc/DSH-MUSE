@@ -91,15 +91,6 @@ function mountRpcChannel(ctx, channel, rpcHandler, options = {}) {
       kind: 'prefix',
       path: channel,
       handler: async (req, res) => {
-        if (options.authority === 'loopback') {
-          const host = (req.headers.host || '').split(':')[0].toLowerCase();
-          if (host !== '127.0.0.1' && host !== 'localhost' && host !== '::1' && host !== '[::1]') {
-            res.writeHead(403);
-            res.end('forbidden: loopback authority required');
-            return;
-          }
-        }
-
         const conn = ctx.get ? ctx.get('connection') : ctx.connection;
         if (conn && typeof conn.admit === 'function') {
           const admission = conn.admit(req);
@@ -113,6 +104,20 @@ function mountRpcChannel(ctx, channel, rpcHandler, options = {}) {
           if (rejection !== undefined) {
             res.writeHead(rejection);
             res.end(rejection === 401 ? 'unauthorized' : 'forbidden');
+            return;
+          }
+        }
+
+        if (options.authority === 'loopback') {
+          let hostname = '';
+          try {
+            hostname = new URL(`http://${req.headers.host || '127.0.0.1'}`).hostname.toLowerCase();
+          } catch {
+            hostname = (req.headers.host || '').replace(/:\d+$/, '').toLowerCase();
+          }
+          if (hostname !== '127.0.0.1' && hostname !== 'localhost' && hostname !== '::1' && hostname !== '[::1]') {
+            res.writeHead(403);
+            res.end('forbidden: loopback authority required');
             return;
           }
         }

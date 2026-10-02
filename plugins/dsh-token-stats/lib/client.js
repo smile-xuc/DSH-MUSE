@@ -124,8 +124,10 @@ window.__ModuleLoader__.load({
 			"row.tooltip": "Token 用量统计（点击看历史）",
 			"row.today": "今日 {value}",
 			"row.week": "本周 {value}",
+			"row.all": "总计 {value}",
 			"row.empty": "暂无用量",
 			"modal.title": "Token 用量统计",
+			"modal.close": "关闭",
 			"card.today": "今日",
 			"card.week": "本周",
 			"card.last7": "近 7 天",
@@ -154,8 +156,10 @@ window.__ModuleLoader__.load({
 			"row.tooltip": "Token usage statistics (click for history)",
 			"row.today": "Today {value}",
 			"row.week": "Week {value}",
+			"row.all": "Total {value}",
 			"row.empty": "No usage yet",
 			"modal.title": "Token usage",
+			"modal.close": "Close",
 			"card.today": "Today",
 			"card.week": "This week",
 			"card.last7": "Last 7 days",
@@ -184,14 +188,16 @@ window.__ModuleLoader__.load({
 		//#region formatting
 		/** Compact figure for the sidebar row and cards: 12.3k / 1.2M. */
 		function formatCompact(value) {
-			if (value >= 1e6) return (value / 1e6).toFixed(1).replace(/\.0$/, "") + "M";
-			if (value >= 1e4) return Math.round(value / 1e3) + "k";
-			if (value >= 1e3) return (value / 1e3).toFixed(1) + "k";
-			return String(value);
+			var num = Number(value) || 0;
+			if (num >= 1e6) return (num / 1e6).toFixed(1).replace(/\.0$/, "") + "M";
+			if (num >= 1e4) return Math.round(num / 1e3) + "k";
+			if (num >= 1e3) return (num / 1e3).toFixed(1) + "k";
+			return String(num);
 		}
 		/** Exact grouped figure for tables. */
 		function formatExact(value) {
-			return value.toLocaleString("en-US");
+			var num = Number(value) || 0;
+			return num.toLocaleString("en-US");
 		}
 		function formatClock(time) {
 			var d = new Date(time);
@@ -249,18 +255,20 @@ window.__ModuleLoader__.load({
 
 		//#region modal
 		function SummaryCard(props) {
+			var row = props.row || { total: 0, input: 0, output: 0 };
+			var trend = props.trend;
 			return h("div", { className: "dsh-token-stats_card", "data-accent": props.accent },
 				h("span", { className: "dsh-token-stats_cardLabel" },
 					h("i", { className: "dsh-token-stats_dot" }),
 					props.label,
-					props.trend !== null && h("span", {
-						className: "dsh-token-stats_trend " + props.trend.tone,
-						title: props.t("card.vsPrevDay", { value: props.trend.signed })
-					}, props.trend.text)),
-				h("span", { className: "dsh-token-stats_cardValue", title: formatExact(props.row.total) }, formatCompact(props.row.total)),
+					Boolean(trend) && h("span", {
+						className: "dsh-token-stats_trend " + (trend.tone || ""),
+						title: props.t("card.vsPrevDay", { value: trend.signed || "" })
+					}, trend.text || "")),
+				h("span", { className: "dsh-token-stats_cardValue", title: formatExact(row.total) }, formatCompact(row.total)),
 				h("span", { className: "dsh-token-stats_cardSub" }, props.t("card.inOut", {
-					input: formatCompact(props.row.input),
-					output: formatCompact(props.row.output)
+					input: formatCompact(row.input),
+					output: formatCompact(row.output)
 				})));
 		}
 
@@ -337,26 +345,28 @@ window.__ModuleLoader__.load({
 				};
 			}, [props.open, props.reload]);
 			var todayK = dayKey(Date.now());
+			var totals = stats && stats.totals ? stats.totals : {};
 			return h(primitives.Modal, {
 				open: props.open,
 				onClose: props.onClose,
 				title: t("modal.title"),
+				closeLabel: t("modal.close"),
 				className: "dsh-token-stats_dialog"
 			},
 				stats === null
 					? h("div", { className: "dsh-token-stats_empty" }, t("meta.loading"))
 					: h(React.Fragment, null,
 						h("div", { className: "dsh-token-stats_cards" },
-							h(SummaryCard, { t: t, label: t("card.today"), row: stats.totals.today, accent: "today", trend: todayTrend(stats, todayK) }),
-							h(SummaryCard, { t: t, label: t("card.week"), row: stats.totals.thisWeek, accent: "week", trend: null }),
-							h(SummaryCard, { t: t, label: t("card.last7"), row: stats.totals.last7Days, accent: "d7", trend: null }),
-							h(SummaryCard, { t: t, label: t("card.all"), row: stats.totals.all, accent: "all", trend: null })),
+							h(SummaryCard, { t: t, label: t("card.today"), row: totals.today, accent: "today", trend: todayTrend(stats, todayK) }),
+							h(SummaryCard, { t: t, label: t("card.week"), row: totals.thisWeek, accent: "week", trend: null }),
+							h(SummaryCard, { t: t, label: t("card.last7"), row: totals.last7Days, accent: "d7", trend: null }),
+							h(SummaryCard, { t: t, label: t("card.all"), row: totals.all, accent: "all", trend: null })),
 						h("div", { className: "dsh-token-stats_toggle" },
 							h("button", { type: "button", className: "dsh-token-stats_toggleBtn", "data-active": tab === "day" || undefined, onClick: function () { setTab("day"); } }, t("tab.day")),
 							h("button", { type: "button", className: "dsh-token-stats_toggleBtn", "data-active": tab === "week" || undefined, onClick: function () { setTab("week"); } }, t("tab.week"))),
 						tab === "day"
-							? h(StatsTable, { t: t, rows: stats.days, keyField: "day", dateLabel: t("table.date"), todayKey: todayK })
-							: h(StatsTable, { t: t, rows: stats.weeks, keyField: "week", dateLabel: t("table.weekOf"), todayKey: null }),
+							? h(StatsTable, { t: t, rows: stats.days || [], keyField: "day", dateLabel: t("table.date"), todayKey: todayK })
+							: h(StatsTable, { t: t, rows: stats.weeks || [], keyField: "week", dateLabel: t("table.weekOf"), todayKey: null }),
 						h("div", { className: "dsh-token-stats_meta" },
 							h("span", null, t("meta.sessions", { withUsage: stats.sessionsWithUsage, count: stats.sessionCount })),
 							h("span", { className: "dsh-token-stats_metaSpacer" }),
@@ -371,23 +381,36 @@ window.__ModuleLoader__.load({
 		//#region sidebar row
 		function TokenStatsEntry(props) {
 			var wide = props.wide;
-			var t = props.t;
+			var t = typeof props.t === "function" ? props.t : function (k, vars) {
+				var msg = zh[k] || k;
+				if (!vars) return msg;
+				return msg.replace(/\{(\w+)\}/g, function (_, name) { return vars[name] !== undefined ? vars[name] : ""; });
+			};
 			var fetchStats = props.fetchStats;
 			var openState = useState(false);
 			var open = openState[0];
 			var setOpen = openState[1];
 			var result = useTokenStats(fetchStats, 60000);
 			var stats = result.stats;
-			var today = stats !== null ? stats.totals.today.total : 0;
-			var week = stats !== null ? stats.totals.thisWeek.total : 0;
-			var summary = stats === null
-				? (result.error ? (wide ? t("meta.error", { message: result.error }) : "加载失败") : t("meta.loading"))
-				: today === 0 && week === 0
-					? t("row.empty")
-					: t("row.today", { value: formatCompact(today) }) + " · " + t("row.week", { value: formatCompact(week) });
+			var today = stats && stats.totals && stats.totals.today ? stats.totals.today.total : 0;
+			var week = stats && stats.totals && stats.totals.thisWeek ? stats.totals.thisWeek.total : 0;
+			var all = stats && stats.totals && stats.totals.all ? stats.totals.all.total : 0;
+			var summary;
+			if (stats === null) {
+				summary = result.error ? (wide ? t("meta.error", { message: result.error }) : "加载失败") : t("meta.loading");
+			} else if (all === 0) {
+				summary = t("row.empty");
+			} else if (today > 0) {
+				summary = t("row.today", { value: formatCompact(today) }) + " · " + t("row.week", { value: formatCompact(week) });
+			} else if (week > 0) {
+				summary = t("row.today", { value: "0" }) + " · " + t("row.week", { value: formatCompact(week) });
+			} else {
+				summary = t("row.today", { value: "0" }) + " · " + t("row.all", { value: formatCompact(all) });
+			}
+			var tooltip = t("row.tooltip") + " — " + summary + (all > 0 ? " (" + t("card.all") + " " + formatCompact(all) + ")" : "");
 			return h(React.Fragment, null,
 				h(primitives.Tooltip, {
-					label: t("row.tooltip") + " — " + summary,
+					label: tooltip,
 					delayMs: 500,
 					disabled: wide
 				},
@@ -435,6 +458,7 @@ window.__ModuleLoader__.load({
 				return ctx.slots.register({
 					name: "sidebar.footer.action",
 					id: "token-stats",
+					order: 100,
 					locale: NS,
 					inject: function () {
 						return { fetchStats: fetchStats };
