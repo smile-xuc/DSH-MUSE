@@ -96,6 +96,7 @@ function foldSessionEvents(events, from, to) {
   let llmRetries = 0;
   const toolCallsByName = {};
   const toolFailures = {};
+  if (!Array.isArray(events)) return { toolCalls, toolErrors, turns, llmRetries, toolCallsByName, toolFailures, usageByStep };
   for (const event of events) {
     if (event.time < from || (to !== undefined && event.time > to)) continue;
     const data = event.data;
@@ -137,6 +138,7 @@ function sumUsage(events, stepKeys, from, to) {
   let input = 0;
   let output = 0;
   const seen = new Map();
+  if (!Array.isArray(events)) return { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
   for (const event of events) {
     if (event.time < from || (to !== undefined && event.time > to)) continue;
     const data = event.data;
@@ -166,14 +168,14 @@ async function readSessionEvents(sp, sessionId, signal) {
     const handle = await sp.open(sessionId, 'read', { signal });
     try {
       const res = await handle.read(0, undefined, { signal });
-      return res.events;
+      return Array.isArray(res) ? res : (res?.events ?? []);
     } finally {
       await handle.close?.();
     }
   }
   if (typeof sp.readFrom === 'function') {
     const res = await sp.readFrom(sessionId, 0, signal);
-    return res.events;
+    return Array.isArray(res) ? res : (res?.events ?? []);
   }
   throw new Error('sessionPersistence has neither open() nor readFrom()');
 }
@@ -420,3 +422,6 @@ export function apply(ctx) {
     presentCall: (args) => ({ card: 'generic', title: `Eval ${args.op}`, kind: 'read' }),
   }));
 }
+
+export { readSessionEvents, foldSessionEvents, sumUsage };
+

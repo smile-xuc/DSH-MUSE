@@ -277,11 +277,21 @@ window.__ModuleLoader__.load({
 			while (menu && menu.querySelectorAll("button").length < 2) menu = menu.parentElement;
 			if (menu === null || processedMenus.has(menu)) return;
 			processedMenus.add(menu);
+
+			/* DSH 0.2.0+ provides native session pinning in the menu.
+			 * Skip injecting if native pin/unpin buttons are already present. */
+			var buttons = menu.querySelectorAll("button");
+			for (var b = 0; b < buttons.length; b++) {
+				var bText = (buttons[b].textContent || "").trim();
+				if (bText === "置顶会话" || bText === "取消置顶" || bText === "Pin session" || bText === "Unpin session") {
+					return;
+				}
+			}
+
 			var session = openMenuSession();
 			if (session === null) return;
 			var renameBtn = null;
 			var renameLabel = null;
-			var buttons = menu.querySelectorAll("button");
 			for (var i = 0; i < buttons.length; i++) {
 				var text = (buttons[i].textContent || "").trim();
 				for (var j = 0; j < MENU_LABELS.length; j++) {
