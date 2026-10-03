@@ -66,6 +66,7 @@ node bin/install.mjs uninstall                       # 完整卸载（只删自�
 | 可观测性 | `dsh-token-stats` | 用量只能翻会话日志 | Web UI 侧栏（设置上方）常驻**今日/本周 token 统计**，点击弹出按日/按周完整历史；复用 harness 官方 usage 口径（防流式双计），增量缓存扫描 |
 | 会话置顶 | `dsh-session-pins` | 手动排序记在原点绑定的浏览器 localStorage，`dsh web` 每次启动随机端口 → 重启即丢 | 会话行「⋯」菜单（重命名同级）内置置顶/取消置顶项；置顶会话显示在侧栏列表**上方的独立置顶区**（点击跳转、悬停 ✕ 取消）；pins 存宿主侧 `~/.dsh/storages/session-pins.json`（原子写），重启/换端口/换浏览器均不丢 |
 | 拖放路径引用 | `dsh-drop-path-ref` | 拖入非图片文件（pdf/zip/csv/文件夹…）只弹"仅支持图片"提示，文件到不了对话 | 捕获阶段拦截纯非图片拖放，把**绝对路径**作为文本插入输入框（agent 的 read/bash 直接可用）；图片仍走原生附件流程。桌面壳内由原生 WKWebView 拖放桥提供可靠路径，浏览器内走 uri-list 解析（Chromium 拿不到路径时回落原生行为） |
+| 联网搜索 | `dsh-web-search-bailian` | 官方仅绑死 DeepSeek Key（web_search_20250305），在千问/百炼等代理或 MaaS 模型下必报缺少凭据 | 原生对接 `ctx.web` 百炼检索提供者，内置 `web_search` 自动桥接 DashScope MCP 服务；凭据解耦安全动态解析（无需在配置中硬编码 Key），配套 `bailian-search` 技能与 CLI 调度说明 |
 
 
 ## Muse 工作台（可视化面板）

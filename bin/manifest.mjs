@@ -55,6 +55,9 @@ export const PLUGINS = [
    * webOnly because the feature is DOM-bound and must stay out of headless
    * eval profiles. */
   { id: 'muse-drop-path-ref', name: 'dsh-drop-path-ref', host: true, webOnly: true },
+  /* Alibaba Cloud Bailian (DashScope) WebSearch provider: native web_search
+   * integration over ctx.web without requiring DeepSeek API key. */
+  { id: 'web-search-bailian', name: 'dsh-web-search-bailian', host: true },
 ];
 
 /** Plugins that run on the host (everything except the browser-only UI).
@@ -66,7 +69,7 @@ export const PLUGINS = [
 export const HOST_PLUGINS = PLUGINS.filter((p) => p.host && p.webOnly !== true);
 
 /** Skills shipped under skills/ (copied to $DSH_HOME/skills/). */
-export const SKILLS = ['muse-orchestrator'];
+export const SKILLS = ['muse-orchestrator', 'bailian-search'];
 
 /** Marker block identity for cordis.patch.yml management. */
 export const MARK_BEGIN = '# >>> dsh-muse (managed — do not edit between markers) >>>';
@@ -100,7 +103,7 @@ export function insertRows(entries = PLUGINS) {
 
 /** The full managed patch block (markers included), as written by install. */
 export function patchBlock(entries = PLUGINS) {
-  return `${MARK_BEGIN}\n- insert:\n${insertRows(entries)}${MARK_END}\n`;
+  return `${MARK_BEGIN}\n- insert:\n${insertRows(entries)}- id: web\n  config:\n    searchProvider: 'bailian'\n${MARK_END}\n`;
 }
 
 /** Repo-relative path of the committed browser bundle the UI plugin needs. */
