@@ -7,18 +7,10 @@ xcrun swiftc -target "$(uname -m)-apple-macos14.0" Sources/StartupURL.swift Sour
 xcrun swiftc -target "$(uname -m)-apple-macos14.0" -O -framework AppKit -framework WebKit Sources/StartupURL.swift Sources/RuntimeLaunch.swift Sources/main.swift -o build/deepseek-harness
 python3 - <<'PY'
 import pathlib, plistlib, shutil, subprocess
+from staging import refresh_staged_bundle
 source = pathlib.Path('/Applications/DeepSeek Harness.app')
 target = pathlib.Path('build/DeepSeek Harness.app')
-def dsh_runtime_version(bundle):
-    package = bundle / 'Contents/Resources/app/node_modules/@deepseek-ai/dsh/package.json'
-    if not package.is_file():
-        return None
-    import json
-    return json.loads(package.read_text()).get('version')
-if target.exists() and dsh_runtime_version(source) != dsh_runtime_version(target):
-    shutil.rmtree(target)
-if not target.exists():
-    shutil.copytree(source, target, symlinks=True)
+refresh_staged_bundle(source, target)
 shutil.copy2('build/deepseek-harness', target / 'Contents/MacOS/deepseek-harness')
 info = target / 'Contents/Info.plist'
 data = plistlib.loads(info.read_bytes())
