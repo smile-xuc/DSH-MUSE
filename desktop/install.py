@@ -31,6 +31,11 @@ try:
     # continue to resolve it. Do not replace bundled Node or user runtime/data.
     for part in parts:
         shutil.copy2(staged / part, installed / part)
+    installed_info = plistlib.loads((installed / 'Contents/Info.plist').read_bytes())
+    electron_name = installed_info.get('DSHElectronExecutable')
+    electron = installed / 'Contents/MacOS' / electron_name if electron_name else None
+    if electron and electron.is_file():
+        subprocess.run(['codesign', '--force', '--sign', '-', str(electron)], check=True)
     subprocess.run(['codesign', '--force', '--options', 'runtime', '--sign', '-', str(installed)], check=True)
     subprocess.run(['codesign', '--verify', '--deep', '--strict', str(installed)], check=True)
 except BaseException:
