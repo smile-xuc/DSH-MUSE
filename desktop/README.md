@@ -1,24 +1,27 @@
-# DeepSeek Harness macOS launcher recovery
+# DeepSeek Harness macOS launcher
 
-The locally packaged Tauri app opened `http://127.0.0.1:<port>/` after startup.
-DSH 0.1.2-rc.1 requires the launch token printed by `dsh web`, so that URL
-returned HTTP 401. The original launcher source and build cache were unavailable.
+This small AppKit/WKWebView shell keeps the DSH app bundle, identity, icon, user data,
+and Electron runtime. It reads the complete official `dsh web:` URL from the runtime
+and lets DSH exchange its startup token for a signed cookie. It does not modify or
+bypass DSH authentication. Tokens stay in memory and are never written to the launcher
+log.
 
-This replacement is a small AppKit/WKWebView shell. It reads the complete official
-`dsh web:` URL from its child process and lets DSH exchange the token for a signed
-cookie. It does not modify or bypass DSH authentication. Tokens are kept in memory
-and never written to the launcher log.
+Current Electron bundles contain DSH at
+`Contents/Resources/app/node_modules/@deepseek-ai/dsh`. The launcher starts that CLI
+through the original Electron executable with `ELECTRON_RUN_AS_NODE=1` and
+`--expose-internals`; `CFBundleExecutable` points to the native shell, and the original
+Electron executable name is retained in `DSHElectronExecutable`. Older bundles remain
+supported when they provide a standalone Node binary under
+`Contents/Resources/resources/node/bin/node` and a DSH runtime under
+`~/Library/Application Support/ai.deepseek.harness/runtime`.
 
-The bundle keeps the original application identity, icon and bundled Node.js.
-It uses the existing runtime under
-`~/Library/Application Support/ai.deepseek.harness/runtime`, and the existing
-`~/.dsh` settings, plugins, workspaces and sessions. Close hides the window;
-clicking the Dock icon reopens it. Quit stops the child runtime. The File menu
-can open the authenticated URL in a regular browser, and Cmd+R reloads/retries.
+The shell uses the existing `~/.dsh` settings, plugins, workspaces and sessions.
+Close hides the window; clicking the Dock icon reopens it. Quit stops the child runtime.
+The File menu can open the authenticated URL in a regular browser, and Cmd+R reloads or
+retries.
 
-The old shell's automatic npm runtime updater is not included. The installed
-runtime is left at its existing version; manage future runtime upgrades explicitly.
-This is a replacement native shell, not a recovered build of the original Tauri source.
+The shell does not update the embedded DSH package. Build from a current DSH app bundle
+to pick up its runtime version; the source app bundle is left unchanged during build.
 
 ## Build and verify
 
@@ -42,11 +45,12 @@ user's message (custom renamed titles may not match the transcript).
 It runs only when both smoke-test flags are explicitly supplied.
 
 Diagnostics: `~/Library/Application Support/ai.deepseek.harness/native-launcher.log`.
-Build products are ignored by git. The build starts from the installed bundle
-to reuse the already-installed Node.js and icon; it does not install anything.
+Build products are ignored by git. The build starts from the installed bundle to reuse
+the current DSH package, Electron runtime and icon; it does not install anything.
 
 `install.py` first saves the complete original App to a timestamped folder under
 `~/.dsh/backups/mac-app-auth-*`, then replaces only the executable and Info.plist,
 and signs/verifies the installed bundle. It keeps the outer application directory
-in place so Dock shortcuts continue to resolve it. The original bundled Node,
-runtime and user data are not replaced. A failed install restores the backup.
+in place so Dock shortcuts continue to resolve it. The original Electron executable,
+DSH package, runtime and user data remain in the bundle. A failed install restores the
+backup.

@@ -2,6 +2,7 @@
 import pathlib
 import os
 import re
+import plistlib
 import subprocess
 import sys
 import time
@@ -20,8 +21,13 @@ if '--smoke-history-title' in sys.argv:
 if '--smoke-delay' in sys.argv:
     index = sys.argv.index('--smoke-delay')
     extra_args.extend(['--smoke-delay', sys.argv[index + 1]])
+info = plistlib.loads((bundle / 'Contents/Info.plist').read_bytes())
+executable_name = info.get('CFBundleExecutable')
+assert isinstance(executable_name, str) and pathlib.Path(executable_name).name == executable_name, 'Invalid CFBundleExecutable'
+launcher = bundle / 'Contents/MacOS' / executable_name
+assert launcher.is_file(), f'Bundle launcher does not exist: {launcher}'
 process = subprocess.Popen(
-    [str(bundle / 'Contents/MacOS/deepseek-harness'), '--smoke-snapshot', str(snapshot), *extra_args],
+    [str(launcher), '--smoke-snapshot', str(snapshot), *extra_args],
     start_new_session=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
 )
 leave_running = '--leave-running' in sys.argv
