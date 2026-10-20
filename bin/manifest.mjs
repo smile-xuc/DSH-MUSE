@@ -68,7 +68,7 @@ export const PLUGINS = [
  *  assembly gains projections. */
 export const HOST_PLUGINS = PLUGINS.filter((p) => p.host && p.webOnly !== true);
 
-/** Skills shipped under skills/ (copied to $DSH_HOME/skills/). */
+/** Skills shipped under skills/ (installed into ~/.agents/skills; $DSH_HOME/skills links there). */
 export const SKILLS = ['muse-orchestrator', 'bailian-search'];
 
 /** Marker block identity for cordis.patch.yml management. */

@@ -49,7 +49,7 @@ node bin/install.mjs uninstall                       # 完整卸载（只删自�
 
 > ⚠️ **默认安全姿态（务必知晓）**：安装后护栏默认启用 `ALLOW_GIT_PUSH_SAFE` 白名单——**独立的、非强制的 `git push`（如 `git push origin main`，含 `cd <目录> &&` 前缀与 `git -C <目录>` 形式）从"需人工审批"降级为"自动入账直接执行"**，因为对个人研发工具而言日常 push 是高频例行操作。`--force`/`-f`/`--delete`/`--mirror`、以及任何带 `;`/`&&`/`|`/换行/命令替换的链式命令**仍然强制审批**（白名单锚定整条命令，无法被拼接洗白，49+22 个标注用例在 CI 守门）。如需恢复严格模式（一切 push 都要审批）：删掉 profile `cordis.patch.yml` 标记块里 `muse-guardrails` 条目的 `config` 两行即可。
 
-安装器做的事（全部可逆）：把 `plugins/` 拷到 `~/.dsh/profiles/plugins/dsh-muse/`、`skills/` 拷到 `~/.dsh/skills/`、在目标 profile 的 `node_modules` 建符号链接、在 `cordis.patch.yml` 插入 `# >>> dsh-muse >>>` 标记块。不碰 DSH 运行时的任何文件。
+安装器做的事（全部可逆）：把 `plugins/` 拷到 `~/.dsh/profiles/plugins/dsh-muse/`、`skills/` 装进 `~/.agents/skills/`（`~/.dsh/skills` 软链到这个总目录）、在目标 profile 的 `node_modules` 建符号链接、在 `cordis.patch.yml` 插入 `# >>> dsh-muse >>>` 标记块。不碰 DSH 运行时的任何文件。
 
 ## 相对原版 DSH 的改动点
 
@@ -92,7 +92,9 @@ node bin/install.mjs uninstall                       # 完整卸载（只删自�
 
 ## 兼容性
 
-- **DSH 版本**：在 `0.1.1-rc.2`、`0.1.2-rc.1`、`0.1.5-rc.1`、`0.1.6-alpha.2`、`0.1.7-rc.2` 及 **`0.2.0-rc.2`** 上实测通过（插件 peerDependencies 覆盖 `^0.1.1-rc.2 || ^0.1.2-rc.1 || ^0.2.0-rc.2`）。
+- **DSH 版本**：在 `0.1.1-rc.2`、`0.1.2-rc.1`、`0.1.5-rc.1`、`0.1.6-alpha.2`、`0.1.7-rc.2`、`0.2.0-rc.2` 及 **`0.2.1-rc.2`** 上实测通过（插件 peerDependencies 覆盖 `^0.1.1-rc.2 || ^0.1.2-rc.1 || ^0.2.0-rc.2 || ^0.2.1-alpha.1`，该范围包含 `0.2.1-rc.2`）。
+  - **0.2.1-rc.2 网页搜索**：官方默认 profile 把 `searchProvider` 设为 `deepseek-official`。安装器的标记块仍把它覆盖为 `bailian`。百炼 provider 只在本地能解析到 API key 时报告可用，避免和官方搜索同时可用时触发 `WEB_PROVIDER_AMBIGUOUS`。
+  - **0.2.1 句柄读取**：`handle.read()` 返回 `{ events, eventState }`。`dsh-token-stats` 与 `dsh-eval` 已同时接受数组和该对象。
   - **0.2.0+ RPC 挂载与注入墙适配**：DSH 0.2.0 起 `@deepseek-ai/dsh-client-connection` 顶层仅声明 `credentials` 注入，延迟注入 `webServer`，导致下游插件调用 `connection.rpc.handle` 会遭遇 `cannot get property "webServer" without inject` 错误阻断激活。`dsh-session-pins`、`dsh-token-stats` 与 `dsh-muse-bridge` 已升级 `mountRpcChannel` 弹性路由适配，在 Web 环境下直接通过 `ctx.webServer.register` 注册路由并联动 `connection.admit` 进行回环鉴权与报文解包，零报错激活，且向后兼容 0.1.x。
   - **0.1.5+ 句柄模型兼容**：0.1.5 起 `ctx.sessionPersistence` 从 `listSnapshots()` / `readFrom()` 重构为句柄模式 `list()` 与 `open(id, 'read')` / `handle.read()` / `handle.close()`。`dsh-token-stats` 与 `dsh-eval` 均已抽象双模驱动，自动探测并优先使用句柄模式，同时无缝兼容 0.1.2 旧接口。
   - **RPC 错误契约**：适配 `@deepseek-ai/dsh-client-connection` 强 schema 校验，所有错误响应规范补齐 `details: {}`，彻底避免客户端抛出 `invalid server-response failure`。
