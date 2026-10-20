@@ -47,7 +47,7 @@ node bin/install.mjs install --profile <名字>        # 默认装入 web profil
 node bin/install.mjs uninstall                       # 完整卸载（只删自己创建的东西）
 ```
 
-> ⚠️ **默认安全姿态（务必知晓）**：安装后护栏默认启用 `ALLOW_GIT_PUSH_SAFE` 白名单——**独立的、非强制的 `git push`（如 `git push origin main`，含 `cd <目录> &&` 前缀与 `git -C <目录>` 形式）从"需人工审批"降级为"自动入账直接执行"**，因为对个人研发工具而言日常 push 是高频例行操作。`--force`/`-f`/`--delete`/`--mirror`、以及任何带 `;`/`&&`/`|`/换行/命令替换的链式命令**仍然强制审批**（白名单锚定整条命令，无法被拼接洗白，49+22 个标注用例在 CI 守门）。如需恢复严格模式（一切 push 都要审批）：删掉 profile `cordis.patch.yml` 标记块里 `muse-guardrails` 条目的 `config` 两行即可。
+> ⚠️ **默认安全姿态（务必知晓）**：安装后护栏默认启用 `ALLOW_GIT_PUSH_SAFE` 白名单——**独立的、非强制的 `git push`（如 `git push origin main`，含 `cd <目录> &&` 前缀、`git -C <目录>` 形式，以及结尾的 `2>&1` / `>/dev/null` 重定向）从"需人工审批"降级为"自动入账直接执行"**，因为对个人研发工具而言日常 push 是高频例行操作。`--force`/`-f`/`--delete`/`--mirror`、以及任何带 `;`/尾部 `&&`/`|`/换行/命令替换的链式命令**仍然强制审批**（白名单锚定整条命令，无法被拼接洗白，49+29 个标注用例在 CI 守门）。如需恢复严格模式（一切 push 都要审批）：删掉 profile `cordis.patch.yml` 标记块里 `muse-guardrails` 条目的 `config` 两行即可。
 
 安装器做的事（全部可逆）：把 `plugins/` 拷到 `~/.dsh/profiles/plugins/dsh-muse/`、`skills/` 装进 `~/.agents/skills/`（`~/.dsh/skills` 软链到这个总目录）、在目标 profile 的 `node_modules` 建符号链接、在 `cordis.patch.yml` 插入 `# >>> dsh-muse >>>` 标记块。不碰 DSH 运行时的任何文件。
 
@@ -104,7 +104,7 @@ node bin/install.mjs uninstall                       # 完整卸载（只删自�
 - **会话安全**：不向会话追加自定义事件类型（持久层会拒读未知类型）；审计走独立存储域（`~/.dsh/storages/{workunit,effects,evidence,eval,workshop}.json`）+ 转写自带 tool/call 对。
 - **环境**：Node ≥ 20（开发与系统 CLI 推荐 Node 22+ / 23+），macOS/Linux。
 - **审批策略**：若你的 DSH 配置为 `danger-full-access`（审批通道关闭），危险命令会被护栏**直接拒绝并入账**；恢复人工审批提示请调整 `settings.yaml` 的 permission preset。
-- **危险命令白名单（默认开启）**：`bin/manifest.mjs` 为 `muse-guardrails` 默认配置 `dangerousAllowPatterns: [ALLOW_GIT_PUSH_SAFE]`——每条 `git push` 仍逐笔入副作用台账（可审计），但不再每次要审批；`allowRepeat` 语义保证重复 push（参数相同但远端状态不同）不会被幂等键误杀。该正则在 `plugins/dsh-guardrails` 与 manifest 中各存一份（manifest 无法 import 插件），`build/check-repo.mjs` 强制两者**字节一致**，`eval/guardrails-labeled.json` 的 22 个白名单用例强制「该降级的降级、该门控的门控」。
+- **危险命令白名单（默认开启）**：`bin/manifest.mjs` 为 `muse-guardrails` 默认配置 `dangerousAllowPatterns: [ALLOW_GIT_PUSH_SAFE]`——每条 `git push` 仍逐笔入副作用台账（可审计），但不再每次要审批；`allowRepeat` 语义保证重复 push（参数相同但远端状态不同）不会被幂等键误杀。该正则在 `plugins/dsh-guardrails` 与 manifest 中各存一份（manifest 无法 import 插件），`build/check-repo.mjs` 强制两者**字节一致**，`eval/guardrails-labeled.json` 的 29 个白名单用例强制「该降级的降级、该门控的门控」。
 
 ## 性能差异（实测）
 

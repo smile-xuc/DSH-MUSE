@@ -222,7 +222,7 @@
     }
   ],
   "allowlistCases": {
-    "description": "白名单语义：strict 列为默认（无白名单）预期，allowlisted 列为启用预设后的预期。预设锚定全串，任何分隔符/替换符都会失配——链式命令不得借白名单洗白。",
+    "description": "白名单语义：strict 列为默认（无白名单）预期，allowlisted 列为启用预设后的预期。预设锚定全串，任何分隔符/替换符都会失配——链式命令不得借白名单洗白。结尾重定向（2>&1、>/dev/null）仍算一条命令。",
     "preset": "ALLOW_GIT_PUSH_SAFE",
     "cases": [
       {
@@ -347,6 +347,48 @@
         "strict": "dangerous",
         "allowlisted": "dangerous",
         "note": "尾部 && 保持门控"
+      },
+      {
+        "command": "git push origin main 2>&1",
+        "strict": "dangerous",
+        "allowlisted": "mutating",
+        "note": "结尾重定向仍是一条命令，降级"
+      },
+      {
+        "command": "cd /Volumes/20Gb-Lib/Coder/yuanzhi-app && git push origin main 2>&1",
+        "strict": "dangerous",
+        "allowlisted": "mutating",
+        "note": "cd 前缀 + 结尾 2>&1，运行日志里的真实写法"
+      },
+      {
+        "command": "git push origin main >/dev/null",
+        "strict": "dangerous",
+        "allowlisted": "mutating",
+        "note": "结尾文件重定向降级"
+      },
+      {
+        "command": "git push origin main >/dev/null 2>&1",
+        "strict": "dangerous",
+        "allowlisted": "mutating",
+        "note": "连续结尾重定向降级"
+      },
+      {
+        "command": "git push origin main 2>&1 && rm -rf /tmp/y",
+        "strict": "dangerous",
+        "allowlisted": "dangerous",
+        "note": "重定向后面再接命令不得洗白"
+      },
+      {
+        "command": "git push --force 2>&1",
+        "strict": "dangerous",
+        "allowlisted": "dangerous",
+        "note": "强推即使带重定向也保持门控"
+      },
+      {
+        "command": "git push origin main 2>&1 | tee /tmp/x",
+        "strict": "dangerous",
+        "allowlisted": "dangerous",
+        "note": "重定向后的管道保持门控"
       }
     ]
   }
