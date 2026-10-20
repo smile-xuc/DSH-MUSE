@@ -34,6 +34,7 @@ import { Service } from '@deepseek-ai/cordis';
 import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain';
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { z } from 'zod';
+import { usageDelta, usageStepKey } from './usage.mjs';
 
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'workunit';
@@ -184,6 +185,53 @@ class WorkUnits extends Service {
   constructor(ctx, config) {
     super(ctx, 'workunits');
     workunitsInstance = this;
+    /** @type {Set<string>} */
+    this._chargedSteps = new Set();
+    ctx.on('session/event', (session, event) => {
+      this._noteUsage(session, event);
+    });
+  }
+
+  /**
+   * Charge the session's active WorkUnit for one finished model step.
+   * Token accounting does not bump revision or updatedAt: a revision bump
+   * races the model's ifRevision, and updatedAt is the plan clock the task
+   * frame uses to detect a stale unit.
+   */
+  _noteUsage(session, event) {
+    try {
+      const delta = usageDelta(event);
+      if (delta <= 0) return;
+      const sessionId = session?.id;
+      if (typeof sessionId !== 'string' || sessionId === '') return;
+      const key = usageStepKey(sessionId, event);
+      if (this._chargedSteps.has(key)) return;
+      void this._applyUsage(sessionId, key, delta);
+    } catch {
+      // A malformed event must not break the session pipeline.
+    }
+  }
+
+  async _applyUsage(sessionId, key, delta) {
+    try {
+      if (this._chargedSteps.has(key)) return;
+      await this._domain();
+      if (this._chargedSteps.has(key)) return;
+      const unit = this.peekCurrent(sessionId);
+      if (unit === undefined || unit.status !== 'active') {
+        this._chargedSteps.add(key);
+        return;
+      }
+      await this.noteSpentTokens(unit.id, delta);
+      this._chargedSteps.add(key);
+      if (this._chargedSteps.size > 2000) {
+        const oldest = this._chargedSteps.values().next().value;
+        if (oldest !== undefined) this._chargedSteps.delete(oldest);
+      }
+    } catch {
+      // Leave the key uncharged. The event will not be replayed; losing one
+      // step's meter is better than failing the session pipeline.
+    }
   }
 
   /**
@@ -390,6 +438,21 @@ class WorkUnits extends Service {
       next.budget.spentTokens += Math.max(0, Math.trunc(delta));
       next.revision += 1;
       next.updatedAt = Date.now();
+      return next;
+    });
+  }
+
+  /**
+   * Runtime meter write. Same counter as {@link addSpentTokens}, but it does
+   * not change revision or updatedAt.
+   */
+  async noteSpentTokens(id, delta) {
+    const amount = Math.max(0, Math.trunc(delta));
+    if (amount === 0) return this.get(id);
+    const units = await this._table('units');
+    return units.update(id, (current) => {
+      const next = structuredClone(current);
+      next.budget.spentTokens += amount;
       return next;
     });
   }

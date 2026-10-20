@@ -107,12 +107,13 @@ const WRITE_TOOLS = {
  * automatable while `--force`/`-f`-combos/`--delete`/`--mirror` remain gated
  * (note: `--force-with-lease` conservatively stays gated too).
  *
- * Anchored to the WHOLE command on purpose: any shell separator (`;`, `&&`,
- * `|`, newline) or substitution char fails the match, so a chained
- * `git push origin main; rm -rf x` can NEVER be laundered through the
- * allowlist — the dangerous tier still sees the `rm -rf`.
+ * Anchored to the WHOLE command on purpose: any shell separator (`;`, a
+ * trailing `&&`, `|`, newline) or substitution char fails the match, so a
+ * chained `git push origin main; rm -rf x` can NEVER be laundered through the
+ * allowlist — the dangerous tier still sees the `rm -rf`. A trailing
+ * redirect (`2>&1`, `>/dev/null`) is still one command and is allowed.
  */
-export const ALLOW_GIT_PUSH_SAFE = String.raw`^\s*(?:cd\s+[a-zA-Z0-9._/:~^ \t-]+\s*&&\s*)?git\s+(?:-\w+\s+\S+\s+|-\w+\s+)*push\b(?![^\n|;&]*(?:--force\b|-\w*f\b|--delete\b|--mirror\b))\s*[a-zA-Z0-9._/:~^@ \t-]*$`;
+export const ALLOW_GIT_PUSH_SAFE = String.raw`^\s*(?:cd\s+[a-zA-Z0-9._/:~^ \t-]+\s*&&\s*)?git\s+(?:-\w+\s+\S+\s+|-\w+\s+)*push\b(?![^\n|;&]*(?:--force\b|-\w*f\b|--delete\b|--mirror\b))(?:\s+[a-zA-Z0-9._/:~^@+-]+)*(?:\s+(?:[0-9]*>&[0-9]|[0-9]*>{1,2}\s*[a-zA-Z0-9._/:~^@+-]+|&>[a-zA-Z0-9._/:~^@+-]*))*\s*$`;
 
 /** Schemastery config; every key overridable from the loader row. */
 export const Config = z.object({
@@ -250,6 +251,44 @@ function effectKey(exec, effect) {
   return `auto:${exec.name}:${effect.action}:${effect.resource}:${hashParams(semanticParams(exec))}`;
 }
 
+/** Active plans with no update for this long are not the current plan. */
+export const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Prompt text for the session's current WorkUnit. A unit that is still
+ * `active` but has not been touched for {@link STALE_AFTER_MS} is reported
+ * as stale: the model must close it instead of executing the old steps.
+ * @param {object | undefined} unit
+ * @param {number} [now]
+ * @returns {string}
+ */
+export function formatTaskFrame(unit, now = Date.now()) {
+  if (unit === undefined) {
+    return '[MUSE: No active WorkUnit in this session. If this turn executes an engineering task or file changes, call `workunit` op=create first to track objective and steps.]';
+  }
+  if (unit.status === 'done' || unit.status === 'cancelled' || unit.status === 'failed') return '';
+  const spent = unit.budget?.spentTokens ?? 0;
+  const max = unit.budget?.maxTokens;
+  const ageMs = typeof unit.updatedAt === 'number' ? now - unit.updatedAt : 0;
+  if (unit.status === 'active' && ageMs > STALE_AFTER_MS) {
+    const ageH = Math.floor(ageMs / (60 * 60 * 1000));
+    return [
+      `WorkUnit ${unit.id} is STALE (active, last update ${ageH}h ago, ${spent} tokens spent).`,
+      'Do not continue this plan. Finish it with workunit op=complete or op=fail, or cancel it, then create a new WorkUnit if the task is still real.',
+      `Stale objective (do not execute): ${unit.objective}`,
+    ].join('\n');
+  }
+  const open = (unit.steps ?? []).filter((s) => s.status === 'pending' || s.status === 'in_progress');
+  const budget = max !== undefined
+    ? ` tokens ${spent}/${max}${spent >= max ? ' — BUDGET EXCEEDED: wrap up, checkpoint and report' : ''}`
+    : (spent > 0 ? ` tokens spent ${spent}` : '');
+  return [
+    `WorkUnit ${unit.id} [${unit.status}] plan v${unit.planVersion} — objective: ${unit.objective}`,
+    unit.constraints?.length > 0 ? `Constraints: ${unit.constraints.join(' | ')}` : '',
+    `Open steps: ${open.length === 0 ? '(none)' : open.map((s) => `${s.id}(${s.status})`).join(', ')}.${budget}`,
+  ].filter((line) => line !== '').join('\n');
+}
+
 /* ------------------------------------------------------------------------ */
 /* apply                                                                     */
 /* ------------------------------------------------------------------------ */
@@ -270,20 +309,7 @@ export function apply(ctx, config) {
         /* sync peek: the frame never blocks prompt assembly on storage I/O;
            on a cold process the first step warms the domain, later steps
            see the resumed unit. */
-        const unit = workunits.peekCurrent(sessionId);
-        if (unit === undefined) {
-          return '[MUSE: No active WorkUnit in this session. If this turn executes an engineering task or file changes, call `workunit` op=create first to track objective and steps.]';
-        }
-        if (unit.status === 'done' || unit.status === 'cancelled' || unit.status === 'failed') return '';
-        const open = unit.steps.filter((s) => s.status === 'pending' || s.status === 'in_progress');
-        const budget = unit.budget.maxTokens !== undefined
-          ? ` tokens ${unit.budget.spentTokens}/${unit.budget.maxTokens}${unit.budget.spentTokens >= unit.budget.maxTokens ? ' — BUDGET EXCEEDED: wrap up, checkpoint and report' : ''}`
-          : '';
-        return [
-          `WorkUnit ${unit.id} [${unit.status}] plan v${unit.planVersion} — objective: ${unit.objective}`,
-          unit.constraints.length > 0 ? `Constraints: ${unit.constraints.join(' | ')}` : '',
-          `Open steps: ${open.length === 0 ? '(none)' : open.map((s) => `${s.id}(${s.status})`).join(', ')}.${budget}`,
-        ].filter((line) => line !== '').join('\n');
+        return formatTaskFrame(workunits.peekCurrent(sessionId));
       },
     });
   }
