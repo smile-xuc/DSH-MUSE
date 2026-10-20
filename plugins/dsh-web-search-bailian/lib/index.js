@@ -68,7 +68,9 @@ export class BailianSearchProvider {
   }
 
   available() {
-    return true
+    // Local key check only. DSH 0.2.1-rc.2 treats every available provider as a
+    // candidate and refuses to choose when more than one is available.
+    return Boolean(resolveBailianKey(this.ctx, this.config))
   }
 
   async search(request, signal) {

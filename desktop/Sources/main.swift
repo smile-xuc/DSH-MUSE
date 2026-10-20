@@ -163,22 +163,22 @@ final class HarnessApp: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNav
             fail("找不到应用资源目录。")
             return
         }
-        let node = resources.appendingPathComponent("resources/node/bin/node")
-        let runtime = support.appendingPathComponent("runtime", isDirectory: true)
-        let entry = runtime.appendingPathComponent("node_modules/@deepseek-ai/dsh/lib/bin.js")
-        guard FileManager.default.isExecutableFile(atPath: node.path),
-              FileManager.default.fileExists(atPath: entry.path) else {
-            fail("找不到已安装的 DSH 或应用内的 Node.js。请检查安装，之后按 ⌘R 重试。")
+        let electronExecutable = Bundle.main.infoDictionary?["DSHElectronExecutable"] as? String
+        guard let launch = resolveRuntimeLaunch(resourcesURL: resources, bundleURL: Bundle.main.bundleURL,
+                                               applicationSupportURL: support, electronExecutableName: electronExecutable) else {
+            fail("找不到已安装的 DSH 运行时。请检查安装，之后按 ⌘R 重试。")
             return
         }
         let process = Process()
-        process.executableURL = node
-        process.arguments = [entry.path, "web", "--no-open", "--host", "127.0.0.1", "--port", "0"]
+        process.executableURL = launch.executableURL
+        process.arguments = launch.arguments
         process.currentDirectoryURL = FileManager.default.homeDirectoryForCurrentUser
         var environment = ProcessInfo.processInfo.environment
-        environment["PATH"] = [node.deletingLastPathComponent().path,
-                                runtime.appendingPathComponent("node_modules/.bin").path,
-                                "/opt/homebrew/bin", "/usr/local/bin", environment["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"].joined(separator: ":")
+        environment.removeValue(forKey: "ELECTRON_RUN_AS_NODE")
+        environment.merge(launch.environment) { _, new in new }
+        environment["PATH"] = (launch.pathEntries + [
+            "/opt/homebrew/bin", "/usr/local/bin", environment["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin",
+        ]).joined(separator: ":")
         process.environment = environment
         let pipe = Pipe()
         process.standardOutput = pipe

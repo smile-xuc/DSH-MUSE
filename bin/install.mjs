@@ -9,7 +9,9 @@
  *
  * What install does (every step is reversible and re-runnable):
  *   1. copies plugins/  -> $DSH_HOME/profiles/plugins/dsh-muse/<name>
- *   2. copies skills/   -> $DSH_HOME/skills/
+ *   2. copies skills/   -> ~/.agents/skills/ when home is the default ~/.dsh
+ *      ($DSH_HOME/skills is a symlink to that shared catalog; a custom
+ *      --home still gets a private skills/ copy)
  *   3. adds `link:` deps to the profile's package.json (documented trail)
  *   4. symlinks the plugins into the profile's node_modules
  *   5. inserts a MARKED block into the profile's cordis.patch.yml
@@ -17,7 +19,7 @@
  * Uninstall removes exactly those artifacts — nothing else is ever touched,
  * so DSH mainline updates can never conflict with this layer.
  */
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -122,9 +124,41 @@ function installPlugins(home) {
   }
 }
 
+/**
+ * Default installs write the shared catalog at ~/.agents/skills and keep
+ * $DSH_HOME/skills as a symlink to it. A custom --home stays isolated.
+ * @param {string} home
+ * @returns {string} directory that should receive the skill bundles
+ */
+function skillInstallRoot(home) {
+  const defaultHome = join(homedir(), '.dsh');
+  if (resolve(home) !== resolve(defaultHome)) {
+    const local = join(home, 'skills');
+    mkdirSync(local, { recursive: true });
+    return local;
+  }
+  const canonicalRoot = join(homedir(), '.agents', 'skills');
+  mkdirSync(canonicalRoot, { recursive: true });
+  const linkPath = join(home, 'skills');
+  let info = null;
+  try {
+    info = lstatSync(linkPath);
+  } catch (err) {
+    if (err?.code !== 'ENOENT') throw err;
+  }
+  if (info?.isSymbolicLink() && realpathSync(linkPath) === realpathSync(canonicalRoot)) return canonicalRoot;
+  if (info && !info.isSymbolicLink()) {
+    throw new Error(`${linkPath} is a real directory; move its skills into ${canonicalRoot} and replace the directory with a symlink first`);
+  }
+  if (info?.isSymbolicLink()) rmSync(linkPath, { force: true });
+  symlinkSync(canonicalRoot, linkPath);
+  return canonicalRoot;
+}
+
 function installSkills(home) {
+  const root = skillInstallRoot(home);
   for (const name of SKILLS) {
-    const target = join(home, 'skills', name);
+    const target = join(root, name);
     rmSync(target, { recursive: true, force: true });
     cpSync(join(ROOT, 'skills', name), target, { recursive: true });
     log('skill', `${name} -> ${target}`);
