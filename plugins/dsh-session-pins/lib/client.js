@@ -65,8 +65,10 @@ window.__ModuleLoader__.load({
 		//#endregion
 
 		//#region pins store (host RPC; records are { sessionId, title, pinnedAt })
+		var currentCtx = null;
 		var connection = null;
 		var sessionsSvc = null;
+		var uiWorkspaceSvc = null;
 		var pins = [];
 		var listeners = new Set();
 		function emit() { listeners.forEach(function (fn) { try { fn(); } catch (_) {} }); }
@@ -104,6 +106,79 @@ window.__ModuleLoader__.load({
 		}
 		function sessionExists(id) {
 			try { return !!sessionsSvc.list.getSnapshot().byId[id]; } catch (_) { return false; }
+		}
+		function resolveUiWorkspace() {
+			if (uiWorkspaceSvc) return uiWorkspaceSvc;
+			try {
+				if (currentCtx) {
+					if (currentCtx.uiWorkspace) return currentCtx.uiWorkspace;
+					if (typeof currentCtx.get === "function") {
+						var ui = currentCtx.get("uiWorkspace", false);
+						if (ui) return ui;
+					}
+				}
+			} catch (_) {}
+			return null;
+		}
+		function openPinSession(sessionId) {
+			// 1. Direct call to uiWorkspace.openSession (official standard API)
+			try {
+				var ui = resolveUiWorkspace();
+				if (ui && typeof ui.openSession === "function") {
+					ui.openSession(sessionId);
+					return;
+				}
+			} catch (e) {
+				console.warn("[session-pins] uiWorkspace.openSession failed:", e);
+			}
+
+			// 2. Try clicking corresponding treeitem in DOM
+			try {
+				var title = liveTitle(sessionId, "");
+				var treeitems = document.querySelectorAll("[role=treeitem]");
+				for (var i = 0; i < treeitems.length; i++) {
+					var item = treeitems[i];
+					var text = (item.textContent || "").trim();
+					if (title && (text === title || text.startsWith(title))) {
+						item.click();
+						return;
+					}
+				}
+			} catch (e) {
+				console.warn("[session-pins] DOM item click failed:", e);
+			}
+
+			// 3. Try expanding collapsed sessions and then clicking
+			try {
+				var expandBtns = document.querySelectorAll("button");
+				var titleToFind = liveTitle(sessionId, "");
+				for (var b = 0; b < expandBtns.length; b++) {
+					var bText = (expandBtns[b].textContent || "").trim();
+					if (bText.indexOf("展开") !== -1 && bText.indexOf("会话") !== -1) {
+						expandBtns[b].click();
+						setTimeout(function () {
+							var items = document.querySelectorAll("[role=treeitem]");
+							for (var k = 0; k < items.length; k++) {
+								var t = (items[k].textContent || "").trim();
+								if (titleToFind && (t === titleToFind || t.startsWith(titleToFind))) {
+									items[k].click();
+									return;
+								}
+							}
+						}, 120);
+						return;
+					}
+				}
+			} catch (_) {}
+
+			// 4. Fallback to sessionsSvc if it ever supports open
+			try {
+				if (sessionsSvc && typeof sessionsSvc.open === "function") {
+					sessionsSvc.open(sessionId);
+					return;
+				}
+			} catch (_) {}
+			console.warn("[session-pins] no handler could open session:", sessionId);
 		}
 		//#endregion
 
@@ -184,7 +259,7 @@ window.__ModuleLoader__.load({
 					unpin.style.visibility = "hidden";
 				};
 				row.onclick = function () {
-					if (sessionExists(pin.sessionId)) sessionsSvc.open(pin.sessionId);
+					openPinSession(pin.sessionId);
 				};
 				list.appendChild(row);
 			});
@@ -349,6 +424,8 @@ window.__ModuleLoader__.load({
 
 		//#region registration
 		function apply(ctx) {
+			currentCtx = ctx;
+			uiWorkspaceSvc = ctx.uiWorkspace || (ctx.get ? ctx.get("uiWorkspace", false) : null);
 			ctx.effect(function () {
 				return ctx.locale.register(NS, { zh: zh, en: en });
 			}, "session-pins: dictionaries");
@@ -382,11 +459,13 @@ window.__ModuleLoader__.load({
 					clearTimeout(scanTimer);
 					if (sectionEl) sectionEl.remove();
 					if (toastEl) toastEl.remove();
+					currentCtx = null;
+					uiWorkspaceSvc = null;
 				};
 			}, "session-pins: dom");
 		}
 		exports.name = "dsh-session-pins";
-		exports.inject = ["locale", "connection", "sessions"];
+		exports.inject = ["locale", "connection", "sessions", "uiWorkspace"];
 		exports.apply = apply;
 		//#endregion
 		return module.exports;

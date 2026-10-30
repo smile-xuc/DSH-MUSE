@@ -43,10 +43,19 @@ final class DropPathRefBridge: NSObject, WKScriptMessageHandler {
     }
 }
 
+final class ConsoleBridge: NSObject, WKScriptMessageHandler {
+    weak var app: HarnessApp?
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == "dshConsole", let text = message.body as? String else { return }
+        app?.log("web: \(text)")
+    }
+}
+
 final class HarnessApp: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate {
     private var window: NSWindow!
     private var webView: HarnessWebView!
     private let dropPathRefBridge = DropPathRefBridge()
+    private let consoleBridge = ConsoleBridge()
     private var child: Process?
     private var launchURL: URL?
     private var titleObservation: NSKeyValueObservation?
@@ -69,6 +78,23 @@ final class HarnessApp: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNav
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
         configuration.userContentController.add(dropPathRefBridge, name: "dshDropPathRef")
+        consoleBridge.app = self
+        configuration.userContentController.add(consoleBridge, name: "dshConsole")
+        let consoleScript = WKUserScript(source: """
+        (() => {
+          const bridge = (level, ...args) => {
+            try {
+              const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+              window.webkit?.messageHandlers?.dshConsole?.postMessage(`[${level}] ${msg}`);
+            } catch (_) {}
+          };
+          const _log = console.log, _warn = console.warn, _error = console.error;
+          console.log = (...args) => { _log(...args); bridge('LOG', ...args); };
+          console.warn = (...args) => { _warn(...args); bridge('WARN', ...args); };
+          console.error = (...args) => { _error(...args); bridge('ERROR', ...args); };
+        })();
+        """, injectionTime: .atDocumentStart, forMainFrameOnly: false)
+        configuration.userContentController.addUserScript(consoleScript)
         webView = HarnessWebView(frame: .zero, configuration: configuration)
         dropPathRefBridge.webView = webView
         webView.navigationDelegate = self
@@ -138,7 +164,7 @@ final class HarnessApp: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNav
         """, baseURL: nil)
     }
 
-    private func log(_ message: String) {
+    fileprivate func log(_ message: String) {
         // Never persist the launch token or model output in the shell log.
         let line = "[\(ISO8601DateFormatter().string(from: Date()))] \(message)\n"
         try? FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
@@ -371,24 +397,39 @@ final class HarnessApp: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNav
         let script = """
         (() => {
           const title = \(encoded)[0];
-          const row = [...document.querySelectorAll('[role=treeitem]')].find(r => r.textContent.includes(title));
-          if (\(attempt) === 0) { if (!row) return 'missing'; row.click(); return 'clicked'; }
-          const selected = row && row.getAttribute('aria-selected') === 'true';
-          const hasTargetMessage = [...document.querySelectorAll('[class$="_userRow"]')].some(r => r.textContent.includes(title));
-          const heading = document.querySelector('nav[aria-label="会话层级"]');
-          let visible = !!row && row.getBoundingClientRect().width > 0 && row.getBoundingClientRect().height > 0;
-          for (let node = row; node; node = node.parentElement) {
-            const style = getComputedStyle(node);
-            if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) < 0.95) visible = false;
-          }
-          return visible && selected && hasTargetMessage && heading?.textContent.includes(title) ? 'ready' : row ? 'waiting' : 'missing';
+          const row = [...document.querySelectorAll('[data-dsh-pins-list] > div, [role=treeitem]')].find(r => r.textContent.includes(title));
+          if (!row) return JSON.stringify({ status: 'missing' });
+          if (\(attempt) === 0) { row.click(); return JSON.stringify({ status: 'clicked' }); }
+          const isPinRow = row.closest('[data-dsh-pins-list]') !== null;
+          const selected = row.getAttribute('aria-selected') === 'true' || isPinRow;
+          const bodyText = document.body.innerText;
+          const hasNotHome = !bodyText.includes('探索未至之境');
+          const hasMessages = document.querySelectorAll('[class*="message"], [class*="bubble"], [class*="userRow"]').length > 0;
+          return JSON.stringify({
+            status: (hasNotHome || hasMessages) ? 'ready' : 'waiting',
+            isPinRow,
+            hasNotHome,
+            hasMessages
+          });
         })()
         """
         webView.evaluateJavaScript(script) { [weak self] result, error in
             guard let self, self.generation == current, !self.stopping else { return }
-            let status = result as? String ?? "script-error"
-            if status == "ready", stableCount >= 4 {
-                self.log("native history ready: target row, heading and message stable for 2 seconds")
+            if attempt == 2 || attempt == 6 {
+                let debugPath = (path as NSString).deletingLastPathComponent + "/clicked-debug.png"
+                self.saveSnapshot(debugPath)
+            }
+            var status = "script-error"
+            if let raw = result as? String, let data = raw.data(using: .utf8),
+               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let s = obj["status"] as? String {
+                status = s
+                self.log("verifyHistory attempt \(attempt): \(raw)")
+            } else {
+                self.log("verifyHistory attempt \(attempt): raw=\(String(describing: result)) error=\(String(describing: error))")
+            }
+            if status == "ready", stableCount >= 2 {
+                self.log("native history ready: session opened and verified")
                 self.saveSnapshot(path)
             } else if error == nil, status != "missing", attempt < 30 {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
