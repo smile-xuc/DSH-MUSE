@@ -192,7 +192,7 @@ function compare() {
     }
   }
 
-  writeFileSync(join(EVAL_DIR, 'report.md'), `# DSH-MUSE eval report\n\n${table}\n`);
+  writeFileSync(join(EVAL_DIR, 'report.md'), `# DSH-haibo eval report\n\n${table}\n`);
   console.log('\n' + table + '\n');
   console.log(`[eval] history appended: ${batchFile}`);
   return { rows, table };

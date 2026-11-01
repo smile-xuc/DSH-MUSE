@@ -50,7 +50,7 @@ for (const row of latest.rows) {
       priority: 'P0',
       task: row.task,
       kind: 'success-regression',
-      detail: `vanilla succeeded but muse failed (${m.verifyDetail}). The Muse layer is blocking a task it should not — inspect guardrails denials and the workunit completion gate for this task shape.`,
+      detail: `vanilla succeeded but muse failed (${m.verifyDetail}). The DSH-haibo control plane is blocking a task it should not — inspect guardrails denials and the workunit completion gate for this task shape.`,
     });
   }
   if (v.metrics.totalTokens > 0) {
@@ -84,7 +84,7 @@ for (const row of latest.rows) {
 
 const date = new Date().toISOString().slice(0, 10);
 const lines = [
-  `# DSH-MUSE evolution proposals — ${date}`,
+  `# DSH-haibo evolution proposals — ${date}`,
   '',
   `Source batch: ${latest.at} (${latest.rows.length} task row(s), history depth ${history.length}).`,
   '',

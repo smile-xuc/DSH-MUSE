@@ -103,7 +103,7 @@ for (const name of PLUGINS) {
 const est = (chars) => Math.ceil(chars / 4);
 const total = rows.reduce((n, r) => n + (r.sectionChars ?? 0) + (r.toolChars ?? 0) + (r.contextChars ?? 0), 0);
 
-console.log('# Muse 层静态 prompt 开销（每请求固定部分，无 LLM 测量）\n');
+console.log('# DSH-haibo 控制面静态 prompt 开销（每请求固定部分，无 LLM 测量）\n');
 console.log('| 插件 | systemPrompt 段落 | 工具定义 | 任务框(5步) | 合计 chars | ≈tokens |');
 console.log('|---|---|---|---|---|---|');
 for (const r of rows) {

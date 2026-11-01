@@ -2,7 +2,7 @@
   "name": "dsh-muse",
   "version": "0.1.0",
   "private": true,
-  "description": "Muse-inspired production layer for the DeepSeek Harness: WorkUnit task state, effect ledger, evidence chain, guardrails, evaluation and governed skill evolution — all as plugins, no core changes.",
+  "description": "DSH-haibo — production layer for the DeepSeek Harness: WorkUnit task state, effect ledger, evidence chain, guardrails, evaluation and governed skill evolution. Design reference: Xiaohongshu Muse Agentic architecture. Plugins only, no core changes.",
   "type": "module",
   "license": "MIT",
   "bin": {

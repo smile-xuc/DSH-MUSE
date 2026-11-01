@@ -1,10 +1,12 @@
-# DSH × Muse：自用高效研发工具交付说明
+# DSH-haibo：自用高效研发工具交付说明
 
-> 基于 InfoQ 文章《AI 写代码飞快，为何交付没有变快？小红书 Muse 的 Agentic 架构实践》的
+> 产品名是 **DSH-haibo**。本文件名仍为 `DSH-MUSE-README.md`，仓库路径仍是 `smile-xuc/DSH-MUSE`。
+>
+> 设计参考（不是产品名）来自 InfoQ 文章《AI 写代码飞快，为何交付没有变快？小红书 Muse 的 Agentic 架构实践》的
 > 设计契约（`~/.dsh/profiles/plugins/MUSE-DESIGN.md`），把 DSH 改造成带 Harness 控制面的
 > 个人研发工具。全部以**插件**实现，不动 DSH 内核，删除配置即可完整回滚。
 
-## 对象模型（与 Muse 对齐）
+## 对象模型（对齐小红书 Muse 设计参考）
 
 | 对象 | 载体 | 位置 |
 |---|---|---|
@@ -27,7 +29,7 @@
 | `dsh-eval` | service `evaluation`，工具 `eval_report` | 三层评测：verifiedSuccess（done 且有 verification）、重复副作用率、每验证任务成本、失败六分类 |
 | `dsh-skill-workshop` | service `workshop`，工具 `skill_workshop` | Skill 不允许静默修改：提案→**直接人类回合审批**→写入+热注册+版本快照→canary→promote→rollback |
 | `dsh-muse-bridge` | 会话投影 `muse` + host RPC `/muse-file` | 可观测桥：把 muse 工具调用对与护栏拦截的写类调用纯折叠成会话投影实时推给前端；提供 `/muse-file` RPC 支持前端点击交付物在操作系统文件管理器（macOS Finder）中定位高亮；headless 下无连接服务时惰性降级 |
-| `dsh-muse-ui` | client 插件（`conversation.view` 槽） | Web GUI「Muse 工作台」标签页：任务旅程/副作用流水线/证据墙/交互式交付物定位跳转/交付印章/实时动态；bundle 已提交，改 src 后 `npm run build:ui` |
+| `dsh-muse-ui` | client 插件（`conversation.view` 槽） | Web GUI 工作台标签页（界面文案仍为「Muse 工作台」）：任务旅程/副作用流水线/证据墙/交互式交付物定位跳转/交付印章/实时动态；bundle 已提交，改 src 后 `npm run build:ui` |
 | `dsh-token-stats` | host RPC `/token-stats` + client（`sidebar.footer.action` 槽） | 侧栏常驻今日/本周 token 统计，点击弹出完整历史；仅 web profile（依赖 connection 服务） |
 | `dsh-session-pins` | host RPC `/session-pins` + client（DOM 增强：会话行菜单注入 + 侧栏顶部置顶区） | 会话置顶：入口在会话行「⋯」菜单（重命名同级），置顶区显示在侧栏列表上方；pins 存宿主侧 `storages/session-pins.json`，重启/换端口不丢；仅 web profile |
 | `dsh-drop-path-ref` | client 捕获阶段 drop 拦截（host 惰性） | 拖入非图片文件自动转为输入框路径引用（含空格自动加引号）；桌面壳经原生 WKWebView 拖放桥（`HarnessWebView` + ready 握手）拿绝对路径，浏览器内走 uri-list；图片仍走原生附件流程；仅 web profile |
