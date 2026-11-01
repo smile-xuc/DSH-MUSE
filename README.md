@@ -213,10 +213,13 @@ node eval/bin/check-guardrails.mjs   # 无 LLM：护栏分类器 vs 49+22 例人
 ## 仓库结构
 
 ```
-plugins/            十一个插件（独立 npm 包形态，peerDeps 钉住 DSH seam 版本）：
+plugins/            十二个插件（独立 npm 包形态，peerDeps 钉住 DSH seam 版本）：
                     六个 Muse 控制面 + dsh-muse-bridge（会话投影桥）+ dsh-muse-ui（浏览器端工作台）
                     + dsh-token-stats（侧栏 token 统计，仅 web）+ dsh-session-pins（会话置顶，仅 web）
                     + dsh-drop-path-ref（拖放非图片文件自动转为路径引用，仅 web）
+                    + dsh-web-search-bailian（原生百炼搜索提供者，仅 web）
+integrations/       高价值扩展套件与三方集成：
+                    baoyu-design/（宝玉设计套件：Slides、Design、Design System、Dashboard）
 desktop/            macOS 原生桌面 App 壳（Swift + WKWebView、构建脚本、安全备份与端到端自动化校验）
 skills/             muse-orchestrator 编排纪律 skill
 bin/manifest.mjs    插件/技能/补丁块清单 —— 单一事实源（install、eval setup、CI 检查共用）
@@ -229,6 +232,25 @@ eval/               自迭代评测：tasks（开销层 t01-t03 + 通用场景 t
 docs/DESIGN.md      设计契约（对象模型/存储域/护栏位/指标口径）
 docs/EVAL-METHODOLOGY.md 评测方法论：效度威胁模型 / 统计纪律 / 任务分层 / 运行规程
 ```
+
+## 扩展生态：宝玉设计插件套件 (Baoyu Design Plugins)
+
+本项目集成了由 [JimLiu/baoyu-design](https://github.com/JimLiu/baoyu-design) 针对 DeepSeek Harness 打造的 4 套设计与可视化套件，并维护于 `integrations/baoyu-design/` 目录：
+
+- **Claude Slides (`/claude-slides`)**：制作与编辑 PPT 演示文稿，支持在线放映与导出 PDF / HTML / PowerPoint (.pptx)。
+- **Claude Design (`/claude-design`)**：页面设计与界面原型生成，支持多画板并排可视化编辑与微调批注。
+- **Claude Design System (`/claude-design-system`)**：生成 Design Tokens、组件库与品牌规范 (Brand Book)。
+- **Claude Dashboard (`/claude-dashboard`)**：数据大屏与仪表板看板，自带 Sources 数据溯源面板。
+
+### 自动化保活与本地管理
+
+```bash
+npm run sync:baoyu:check   # 检查上游 npm 是否有新版本
+npm run sync:baoyu         # 从 npm 同步最新版本包并解压入库
+npm run install:baoyu      # 一键同步并安装至本地 DSH（web profile）
+```
+
+> 💡 **自动更新流**：配置了 [`.github/workflows/sync-baoyu-plugins.yml`](.github/workflows/sync-baoyu-plugins.yml) GitHub Actions 任务，每周一自动比对上游 npm 发布并提交更新，保持 GitHub 仓库始终与上游保持同步。
 
 ## 致谢与设计来源
 
