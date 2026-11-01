@@ -2,9 +2,9 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 mkdir -p build
-xcrun swiftc -target "$(uname -m)-apple-macos14.0" Sources/StartupURL.swift Sources/RuntimeLaunch.swift Tests/main.swift -o build/startup-url-tests
+xcrun swiftc -target "$(uname -m)-apple-macos14.0" Sources/StartupURL.swift Sources/RuntimeLaunch.swift Sources/RuntimeLifecycle.swift Tests/main.swift -o build/startup-url-tests
 ./build/startup-url-tests
-xcrun swiftc -target "$(uname -m)-apple-macos14.0" -O -framework AppKit -framework WebKit Sources/StartupURL.swift Sources/RuntimeLaunch.swift Sources/main.swift -o build/deepseek-harness
+xcrun swiftc -target "$(uname -m)-apple-macos14.0" -O -framework AppKit -framework WebKit Sources/StartupURL.swift Sources/RuntimeLaunch.swift Sources/RuntimeLifecycle.swift Sources/main.swift -o build/deepseek-harness
 python3 - <<'PY'
 import pathlib, plistlib, shutil, subprocess
 from staging import refresh_staged_bundle

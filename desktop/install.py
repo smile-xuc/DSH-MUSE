@@ -67,9 +67,12 @@ def install_app(installed, staged, backup, last_backup_file, run=subprocess.run)
 
     try:
         # Keep the application directory itself in place so existing Dock items
-        # continue to resolve it. Do not replace bundled Node or user runtime/data.
+        # continue to resolve it. Unlink before copying so a running Mach-O
+        # keeps its existing inode and never hits arm64 Code Signature Invalid.
         for part in (launcher_rel, info_rel):
-            shutil.copy2(staged / part, installed / part)
+            dest = installed / part
+            dest.unlink(missing_ok=True)
+            shutil.copy2(staged / part, dest)
         installed_info = plistlib.loads((installed / info_rel).read_bytes())
         embedded_electron = installed / 'Contents/MacOS' / installed_info.get(
             'DSHElectronExecutable', '')

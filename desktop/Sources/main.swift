@@ -57,6 +57,7 @@ final class HarnessApp: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNav
     private let dropPathRefBridge = DropPathRefBridge()
     private let consoleBridge = ConsoleBridge()
     private var child: Process?
+    private var childStdinPipe: Pipe?
     private var launchURL: URL?
     private var titleObservation: NSKeyValueObservation?
     private var stopping = false
@@ -195,32 +196,48 @@ final class HarnessApp: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNav
             fail("找不到已安装的 DSH 运行时。请检查安装，之后按 ⌘R 重试。")
             return
         }
+        if let reaped = reapStaleRuntime(in: support) {
+            log("reaped orphaned runtime pid=\(reaped)")
+        }
         let process = Process()
         process.executableURL = launch.executableURL
-        process.arguments = launch.arguments
+        var arguments = launch.arguments
+        if let watchdog = try? ensureParentWatchdogScript(in: support) {
+            arguments = ["--require", watchdog.path] + arguments
+        }
+        process.arguments = arguments
         process.currentDirectoryURL = FileManager.default.homeDirectoryForCurrentUser
         var environment = ProcessInfo.processInfo.environment
         environment.removeValue(forKey: "ELECTRON_RUN_AS_NODE")
         environment.merge(launch.environment) { _, new in new }
+        environment["DSH_NATIVE_LAUNCHER_PID"] = String(ProcessInfo.processInfo.processIdentifier)
         environment["PATH"] = (launch.pathEntries + [
             "/opt/homebrew/bin", "/usr/local/bin", environment["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin",
         ]).joined(separator: ":")
         process.environment = environment
         let pipe = Pipe()
+        let stdinPipe = Pipe()
         process.standardOutput = pipe
         process.standardError = pipe
-        process.standardInput = FileHandle.nullDevice
+        process.standardInput = stdinPipe
+        try? childStdinPipe?.fileHandleForWriting.close()
+        childStdinPipe = stdinPipe
         process.terminationHandler = { [weak self] stopped in
             DispatchQueue.main.async {
-                guard let self, !self.stopping, self.generation == current else { return }
+                guard let self else { return }
+                clearRuntimePID(expectedPID: stopped.processIdentifier, in: self.support)
+                guard !self.stopping, self.generation == current else { return }
                 self.fail("DSH 服务已退出（状态 \(stopped.terminationStatus)）。按 ⌘R 重试。")
             }
         }
         child = process
         do {
             try process.run()
+            recordRuntimePID(process.processIdentifier, executablePath: launch.executableURL.path, in: support)
             log("runtime started pid=\(process.processIdentifier)")
         } catch {
+            try? stdinPipe.fileHandleForWriting.close()
+            if childStdinPipe === stdinPipe { childStdinPipe = nil }
             fail("DSH 启动失败：\(error.localizedDescription)")
             return
         }
@@ -281,7 +298,10 @@ final class HarnessApp: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNav
         guard !childStopInProgress else { return }
         childStopInProgress = true
         let process = child
+        let stdinPipe = childStdinPipe
+        childStdinPipe = nil
         log("shutdown: stopping child")
+        try? stdinPipe?.fileHandleForWriting.close()
         if let process, process.isRunning { process.terminate() }
         DispatchQueue.global(qos: .utility).async { [weak self] in
             if let process {
@@ -291,6 +311,9 @@ final class HarnessApp: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNav
                 if process.isRunning { kill(process.processIdentifier, SIGKILL) }
                 self?.log("shutdown: waiting for child exit")
                 process.waitUntilExit()
+                if let support = self?.support {
+                    clearRuntimePID(expectedPID: process.processIdentifier, in: support)
+                }
                 self?.log("shutdown: child exit observed")
             }
             // NSApplication's terminateLater can run a nested modal loop while

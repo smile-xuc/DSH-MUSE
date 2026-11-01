@@ -69,6 +69,10 @@ class InstallerTests(unittest.TestCase):
     def test_installs_over_existing_swift_launcher_bundle(self):
         old_launcher = b'old Swift launcher'
         make_bundle(self.installed, 'deepseek-harness', old_launcher)
+        running_ref = self.root / 'running-launcher-ref'
+        import os
+        os.link(self.installed / 'Contents/MacOS/deepseek-harness', running_ref)
+        old_inode = running_ref.stat().st_ino
 
         commands = self.run_install()
 
@@ -79,6 +83,11 @@ class InstallerTests(unittest.TestCase):
                          hashlib.sha256(old_launcher).hexdigest())
         self.assertEqual((self.installed / 'Contents/MacOS/deepseek-harness').read_bytes(),
                          b'new native launcher')
+        # Existing mapped inode must remain untouched (unlinked before write) so a running
+        # macOS arm64 process never hits vnode Code Signature Invalid.
+        self.assertNotEqual((self.installed / 'Contents/MacOS/deepseek-harness').stat().st_ino,
+                            old_inode)
+        self.assertEqual(running_ref.read_bytes(), old_launcher)
         self.assertEqual(len(commands), 3)
         self.assertNotIn('deepseek-harness', commands[1][-1])
         self.assertIn('--verify', commands[-1])
