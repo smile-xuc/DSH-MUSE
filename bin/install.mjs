@@ -19,7 +19,7 @@
  * Uninstall removes exactly those artifacts — nothing else is ever touched,
  * so DSH mainline updates can never conflict with this layer.
  */
-import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -33,6 +33,22 @@ const PLUGIN_NAMES = PLUGINS.map((p) => p.name);
 const PATCH_BLOCK = patchBlock();
 
 /* ------------------------------------------------------------------ */
+
+/**
+ * Robustly remove a file, symlink, or directory.
+ * Node's `rmSync(..., { force: true })` does NOT unlink broken symlinks
+ * because stat() fails with ENOENT before reaching the unlink phase.
+ */
+function safeRemove(target) {
+  try {
+    const st = lstatSync(target, { throwIfNoEntry: false });
+    if (st?.isSymbolicLink()) {
+      unlinkSync(target);
+      return;
+    }
+  } catch {}
+  rmSync(target, { recursive: true, force: true });
+}
 
 function parseArgs(argv) {
   const args = { command: argv[2] ?? 'install', profile: 'web', home: process.env.DSH_HOME ?? join(homedir(), '.dsh') };
@@ -65,10 +81,7 @@ function cleanLegacy(home, profile) {
   }
   for (const [, pkg] of LEGACY) {
     const dir = join(home, 'profiles', 'plugins', pkg);
-    if (existsSync(dir)) {
-      rmSync(dir, { recursive: true, force: true });
-      log('legacy', `removed old plugin dir ${pkg}`);
-    }
+    safeRemove(dir);
   }
 }
 
@@ -172,7 +185,7 @@ function linkIntoProfile(home, profile) {
   mkdirSync(nmDir, { recursive: true });
   for (const name of PLUGIN_NAMES) {
     const link = join(nmDir, name);
-    rmSync(link, { recursive: true, force: true });
+    safeRemove(link);
     symlinkSync(join('..', '..', 'plugins', 'dsh-muse', name), link);
     log('link', `${profile}/node_modules/${name}`);
   }
@@ -201,10 +214,10 @@ function patchProfile(home, profile) {
 }
 
 function uninstall(home, profile) {
-  rmSync(join(home, 'profiles', 'plugins', 'dsh-muse'), { recursive: true, force: true });
-  for (const name of SKILLS) rmSync(join(home, 'skills', name), { recursive: true, force: true });
+  safeRemove(join(home, 'profiles', 'plugins', 'dsh-muse'));
+  for (const name of SKILLS) safeRemove(join(home, 'skills', name));
   const nmDir = join(home, 'profiles', profile, 'node_modules');
-  for (const name of PLUGIN_NAMES) rmSync(join(nmDir, name), { recursive: true, force: true });
+  for (const name of PLUGIN_NAMES) safeRemove(join(nmDir, name));
   const patchPath = join(home, 'profiles', profile, 'cordis.patch.yml');
   if (existsSync(patchPath)) writeFileSync(patchPath, removePatch(readFileSync(patchPath, 'utf8')));
   const pkgPath = join(home, 'profiles', profile, 'package.json');
