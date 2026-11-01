@@ -246,7 +246,7 @@
         "allowlisted": "mutating"
       },
       {
-        "command": "git push https://github.com/smile-xuc/DSH-MUSE.git main",
+        "command": "git push https://github.com/smile-xuc/DSH-haibo.git main",
         "strict": "dangerous",
         "allowlisted": "mutating"
       },

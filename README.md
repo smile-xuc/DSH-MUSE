@@ -2,7 +2,7 @@
 
 **DSH-haibo** 把 [DeepSeek Harness](https://github.com/deepseek-ai)（DSH）从"会写代码的 Agent"升级为"能可靠交付的研发工具"。设计参考（不是产品名）是小红书 Muse Agentic 架构（InfoQ/AICon 2026《AI 写代码飞快，为何交付没有变快？》）。实现仍是**纯插件**形式的 Harness 控制面：WorkUnit 任务状态、Effect Ledger 副作用台账、Context Evidence 证据链、四位护栏、三层评测、Skill 治理工坊，外加实时可观测（会话投影桥 + Web GUI 工作台标签页；界面文案目前仍是「Muse 工作台」）。
 
-> 产品名是 **DSH-haibo**。GitHub 仓库路径仍是 [smile-xuc/DSH-MUSE](https://github.com/smile-xuc/DSH-MUSE)，克隆命令使用该地址。小红书 Muse 只作为设计参考，见文末致谢。
+> 产品名是 **DSH-haibo**。GitHub 仓库路径是 [smile-xuc/DSH-haibo](https://github.com/smile-xuc/DSH-haibo)，克隆命令使用该地址。小红书 Muse 只作为设计参考，见文末致谢。
 
 > 零内核改动：DSH 主线怎么升级都不会与本项目冲突；删掉一个标记块即可完整回滚。
 
@@ -37,7 +37,7 @@
 前提：本机已装 [DSH](https://github.com/deepseek-ai)（`dsh` 命令可用）和 Node.js 20+（跑评测体系需 22+）。不需要 fork，不改 DSH 本体。
 
 ```bash
-git clone https://github.com/smile-xuc/DSH-MUSE.git && cd DSH-MUSE
+git clone https://github.com/smile-xuc/DSH-haibo.git && cd DSH-haibo
 node bin/install.mjs install
 ```
 
