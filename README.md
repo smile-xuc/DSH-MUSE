@@ -94,7 +94,7 @@ node bin/install.mjs uninstall                       # 完整卸载（只删自�
 
 ## 兼容性
 
-- **DSH 版本**：在 `0.1.1-rc.2`、`0.1.2-rc.1`、`0.1.5-rc.1`、`0.1.6-alpha.2`、`0.1.7-rc.2`、`0.2.0-rc.2` 及 **`0.2.1-rc.2`** 上实测通过（插件 peerDependencies 覆盖 `^0.1.1-rc.2 || ^0.1.2-rc.1 || ^0.2.0-rc.2 || ^0.2.1-alpha.1`，该范围包含 `0.2.1-rc.2`）。
+- **DSH 版本**：历史整机实测覆盖 `0.1.1-rc.2`、`0.1.2-rc.1`、`0.1.5-rc.1`、`0.1.6-alpha.2`、`0.1.7-rc.2`、`0.2.0-rc.2` 及 `0.2.1-rc.2`。当前 CI / 文档钉扎 tip 为 **`0.2.1-rc.5`**（上游 tag `dsh-v0.2.1-rc.5`）。插件 peerDependencies 仍是 `^0.1.1-rc.2 || ^0.1.2-rc.1 || ^0.2.0-rc.2 || ^0.2.1-alpha.1`；默认 semver（不设 `includePrerelease`）已匹配 `0.2.1-rc.5`。家庭主机拓扑与隔离试验见 [docs/home-host.md](docs/home-host.md)。
   - **0.2.1-rc.2 网页搜索**：官方默认 profile 把 `searchProvider` 设为 `deepseek-official`。安装器的标记块仍把它覆盖为 `bailian`。百炼 provider 只在本地能解析到 API key 时报告可用，避免和官方搜索同时可用时触发 `WEB_PROVIDER_AMBIGUOUS`。
   - **0.2.1 句柄读取**：`handle.read()` 返回 `{ events, eventState }`。`dsh-token-stats` 与 `dsh-eval` 已同时接受数组和该对象。
   - **0.2.0+ RPC 挂载与注入墙适配**：DSH 0.2.0 起 `@deepseek-ai/dsh-client-connection` 顶层仅声明 `credentials` 注入，延迟注入 `webServer`，导致下游插件调用 `connection.rpc.handle` 会遭遇 `cannot get property "webServer" without inject` 错误阻断激活。`dsh-session-pins`、`dsh-token-stats` 与 `dsh-muse-bridge` 已升级 `mountRpcChannel` 弹性路由适配，在 Web 环境下直接通过 `ctx.webServer.register` 注册路由并联动 `connection.admit` 进行回环鉴权与报文解包，零报错激活，且向后兼容 0.1.x。
@@ -233,6 +233,7 @@ eval/               自迭代评测：tasks（开销层 t01-t03 + 通用场景 t
                     + check-guardrails（标注集回归）+ history（批次只增不减）
 docs/DESIGN.md      设计契约（对象模型/存储域/护栏位/指标口径）
 docs/EVAL-METHODOLOGY.md 评测方法论：效度威胁模型 / 统计纪律 / 任务分层 / 运行规程
+docs/home-host.md   家庭主机拓扑、隔离 superagent 试验、飞书 Source 的 v0 范围
 ```
 
 ## 扩展生态：宝玉设计插件套件 (Baoyu Design Plugins)
