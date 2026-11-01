@@ -371,6 +371,15 @@ final class HarnessApp: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNav
                     let delay = (delayIndex != nil && delayIndex! + 1 < args.count) ? (Double(args[delayIndex! + 1]) ?? 0.0) : 0.0
                     if let index = args.firstIndex(of: "--smoke-history-title"), index + 1 < args.count {
                         self.verifyHistory(args[index + 1], path: path, current: current)
+                    } else if let evalIndex = args.firstIndex(of: "--smoke-eval-js"), evalIndex + 1 < args.count {
+                        let jsCode = args[evalIndex + 1]
+                        self.webView.evaluateJavaScript(jsCode) { result, err in
+                            self.log("smoke-eval-js: \(String(describing: result)) err=\(String(describing: err))")
+                            let postDelay = delay > 0 ? delay : 2.0
+                            DispatchQueue.main.asyncAfter(deadline: .now() + postDelay) {
+                                self.saveSnapshot(path)
+                            }
+                        }
                     } else if delay > 0 {
                         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                             self.saveSnapshot(path)
@@ -430,7 +439,20 @@ final class HarnessApp: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNav
             }
             if status == "ready", stableCount >= 2 {
                 self.log("native history ready: session opened and verified")
-                self.saveSnapshot(path)
+                let args = CommandLine.arguments
+                if let evalIndex = args.firstIndex(of: "--smoke-eval-js"), evalIndex + 1 < args.count {
+                    let jsCode = args[evalIndex + 1]
+                    self.webView.evaluateJavaScript(jsCode) { result, err in
+                        self.log("verifyHistory smoke-eval-js: \(String(describing: result)) err=\(String(describing: err))")
+                        let delayIndex = args.firstIndex(of: "--smoke-delay")
+                        let delay = (delayIndex != nil && delayIndex! + 1 < args.count) ? (Double(args[delayIndex! + 1]) ?? 2.0) : 2.0
+                        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                            self.saveSnapshot(path)
+                        }
+                    }
+                } else {
+                    self.saveSnapshot(path)
+                }
             } else if error == nil, status != "missing", attempt < 30 {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     self.verifyHistory(title, path: path, current: current, attempt: attempt + 1,

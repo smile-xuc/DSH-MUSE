@@ -55,6 +55,10 @@ export const PLUGINS = [
    * webOnly because the feature is DOM-bound and must stay out of headless
    * eval profiles. */
   { id: 'muse-drop-path-ref', name: 'dsh-drop-path-ref', host: true, webOnly: true },
+  /* Auto-open design canvas / web preview in right sidebar browser:
+   * automatically expands sidebarRight and displays the sandboxed canvas
+   * when local artifact/design server URLs are generated. */
+  { id: 'muse-auto-canvas', name: 'dsh-auto-canvas', host: true, webOnly: true },
   /* Alibaba Cloud Bailian (DashScope) WebSearch provider: native web_search
    * integration over ctx.web without requiring DeepSeek API key. */
   { id: 'web-search-bailian', name: 'dsh-web-search-bailian', host: true },

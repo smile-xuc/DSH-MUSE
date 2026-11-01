@@ -21,6 +21,9 @@ if '--smoke-history-title' in sys.argv:
 if '--smoke-delay' in sys.argv:
     index = sys.argv.index('--smoke-delay')
     extra_args.extend(['--smoke-delay', sys.argv[index + 1]])
+if '--smoke-eval-js' in sys.argv:
+    index = sys.argv.index('--smoke-eval-js')
+    extra_args.extend(['--smoke-eval-js', sys.argv[index + 1]])
 info = plistlib.loads((bundle / 'Contents/Info.plist').read_bytes())
 executable_name = info.get('CFBundleExecutable')
 assert isinstance(executable_name, str) and pathlib.Path(executable_name).name == executable_name, 'Invalid CFBundleExecutable'
