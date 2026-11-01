@@ -1875,7 +1875,7 @@ var ShareHost = class {
   /** What the page runs before anything else (see SECURE_CONTEXT_SHIM and GUEST_WATCH). */
   bootScript(viewer, query = new URLSearchParams()) {
     const share = { ...this.me(viewer), noun: this.options.noun, title: this.options.title(), ...this.options.reactions ? { reactions: true } : {} };
-    let js = `${SECURE_CONTEXT_SHIM}window.__baoyuShare=${script(share)};`;
+    let js = `${SECURE_CONTEXT_SHIM}try{if(window.parent!==window)Object.defineProperty(window,"parent",{value:window,configurable:true,writable:true});}catch(e){}window.__baoyuShare=${script(share)};`;
     for (const [name, value] of Object.entries(this.options.globals?.(viewer, query) ?? {})) js += `window[${script(name)}]=${script(value)};`;
     if (viewer.guest) js += GUEST_WATCH;
     return js;

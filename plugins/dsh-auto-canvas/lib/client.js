@@ -180,6 +180,10 @@ window.__ModuleLoader__.load({
 		}
 
 		function triggerOpen(sessionId, url) {
+			if (arguments.length === 1) {
+				url = sessionId;
+				sessionId = null;
+			}
 			if (!url) return false;
 			try {
 				var root = (currentCtx && currentCtx.root) || currentCtx;

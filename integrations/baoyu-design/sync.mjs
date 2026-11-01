@@ -10,7 +10,7 @@
  */
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,6 +55,40 @@ function getLocalVersion(pkgName) {
   }
 }
 
+export function applyIframeCompatibilityPatch(targetDir) {
+  const skillsDir = join(targetDir, 'skills');
+  if (!existsSync(skillsDir)) return;
+  for (const s of readdirSync(skillsDir)) {
+    // 1. Patch server.mjs bootScript to shadow window.parent
+    const serverMjs = join(skillsDir, s, 'scripts', 'server.mjs');
+    if (existsSync(serverMjs)) {
+      let content = readFileSync(serverMjs, 'utf8');
+      const bootTarget = 'let js = `${SECURE_CONTEXT_SHIM}window.__baoyuShare=${script(share)};`;';
+      const bootReplacement = 'let js = `${SECURE_CONTEXT_SHIM}try{if(window.parent!==window)Object.defineProperty(window,"parent",{value:window,configurable:true,writable:true});}catch(e){}window.__baoyuShare=${script(share)};`;';
+      if (content.includes(bootTarget)) {
+        content = content.replace(bootTarget, bootReplacement);
+        writeFileSync(serverMjs, content, 'utf8');
+      }
+    }
+
+    // 2. Patch editor asset bundles to treat localhost/127.0.0.1 as local standalone
+    const assetsDir = join(skillsDir, s, 'scripts', 'editor', 'assets');
+    if (existsSync(assetsDir)) {
+      for (const f of readdirSync(assetsDir)) {
+        if (f.startsWith('index-') && f.endsWith('.js')) {
+          const assetPath = join(assetsDir, f);
+          let content = readFileSync(assetPath, 'utf8');
+          const parentCheckRegex = /return\s+e\.parent\s*===\s*e\s*\?\s*null\s*:\s*\{post:/g;
+          if (parentCheckRegex.test(content)) {
+            content = content.replace(parentCheckRegex, 'return(e.parent===e||e.location.hostname==="127.0.0.1"||e.location.hostname==="localhost")?null:{post:');
+            writeFileSync(assetPath, content, 'utf8');
+          }
+        }
+      }
+    }
+  }
+}
+
 async function downloadAndExtract(pkgName, tarballUrl, targetDir) {
   console.log(`[sync] downloading ${pkgName} from ${tarballUrl}...`);
   const res = await fetch(tarballUrl, { signal: AbortSignal.timeout(30000) });
@@ -79,6 +113,7 @@ async function downloadAndExtract(pkgName, tarballUrl, targetDir) {
     rmSync(targetDir, { recursive: true, force: true });
     mkdirSync(targetDir, { recursive: true });
     execFileSync('cp', ['-R', `${sourceDir}/.`, targetDir]);
+    applyIframeCompatibilityPatch(targetDir);
     console.log(`[sync] successfully updated ${pkgName} -> ${targetDir}`);
   } finally {
     rmSync(tmpTarball, { force: true });
