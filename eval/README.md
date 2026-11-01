@@ -1,7 +1,7 @@
-# DSH-MUSE 自迭代评测体系
+# DSH-haibo 自迭代评测体系
 
-对照实验：**eval-vanilla**（原版 headless）vs **eval-muse**（+七个 Muse 宿主插件，清单取自 `bin/manifest.mjs` 单一事实源）。
-两个 profile 共享同一份全局 settings（同一模型、同一凭据），唯一差异是 Muse 层。
+对照实验：**eval-vanilla**（原版 headless）vs **eval-muse**（profile 名未改；+七个 DSH-haibo 宿主插件，清单取自 `bin/manifest.mjs` 单一事实源）。
+两个 profile 共享同一份全局 settings（同一模型、同一凭据），唯一差异是 DSH-haibo 控制面。
 方法论契约（效度威胁模型、统计纪律、任务分层）见 [../docs/EVAL-METHODOLOGY.md](../docs/EVAL-METHODOLOGY.md)。
 
 > 构成说明：`dsh-muse-ui` 是纯浏览器端插件，不进 headless 基准；`dsh-muse-bridge` 随宿主插件挂载，
@@ -11,7 +11,7 @@
 ## 使用
 
 ```bash
-node bin/install.mjs install        # 先安装 Muse 层（eval-muse 依赖它）
+node bin/install.mjs install        # 先安装 DSH-haibo 控制面（eval-muse profile 依赖它）
 node eval/bin/setup.mjs             # 创建 eval-vanilla / eval-muse 两个 profile
 node eval/bin/run.mjs all --repeat 3  # 正式对照（A-B 交错执行，摊平时间漂移）
 node eval/bin/run.mjs t01-write-verify  # 冒烟：单任务单次
@@ -38,7 +38,7 @@ node eval/bin/check-guardrails.mjs  # 护栏分类器 vs 人工标注集（preci
 
 ## 任务分层
 
-- **开销基准层**（t01–t03 + t07–t10 + t12）：两臂预期都成功，测的是 Muse 层的成本与基本行为差异。
+- **开销基准层**（t01–t03 + t07–t10 + t12）：两臂预期都成功，测的是 DSH-haibo 控制面的成本与基本行为差异。
   - t01–t03 为最小/幂等/小修场景；
   - t07–t09 为通用日常场景（契约补全 CSV 解析、跨文件重命名重构、为无测试模块写测试）；
   - **t10 为多模块级联依赖重构**（底层日志签名升级，3 个服务消费方联动重构且保持全量单测通过）；

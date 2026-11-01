@@ -1,5 +1,7 @@
-# DSH × Muse：自用高效研发工具改造设计
+# DSH-haibo：自用高效研发工具改造设计
 
+> 产品名是 **DSH-haibo**。小红书 Muse 只作为设计参考，不是产品名。
+>
 > 目标：以 DSH 为 Agent Runtime 内核，吸收小红书 Muse 的 Harness 控制面、
 > Context Engineering、WorkUnit 状态、验证、审批与自进化治理，
 > 将 DSH 加固为可自用的生产级研发工具。
@@ -8,9 +10,9 @@
 > （郑鑫祺 @ AICon 2026）。本文档是设计契约，实现全部以 DSH 插件形式落地，
 > 不改动 node_modules 中的上游包，升级安全、可整体回滚。
 
-## 0. 核心原则（来自 Muse，逐条落到机制）
+## 0. 核心原则（来自小红书 Muse 设计参考，逐条落到机制）
 
-| Muse 原则 | DSH 落地机制 |
+| 小红书 Muse 原则 | DSH-haibo 落地机制 |
 |---|---|
 | Transcript ≠ 任务状态 | `dsh-workunit`：结构化任务对象，事件溯源 + 版本化 |
 | 工具返回成功 ≠ 业务完成 | `dsh-eval`：交付后业务验证（verify artifact）才算完成 |
@@ -53,7 +55,7 @@ SkillProposal  = Skill 变更提案：diff、评测、审批、版本、灰度�
 ├── dsh-eval/              三层评测 + 指标聚合（Service: eval）
 ├── dsh-skill-workshop/    Skill 治理（proposal 工作流）
 ├── dsh-muse-bridge/       可观测桥：muse 工具流 → 纯函数会话投影 `muse`（web）
-└── dsh-muse-ui/           Muse 工作台标签页（浏览器端 cordis client 插件；宿主侧为空壳）
+└── dsh-muse-ui/           工作台标签页（界面文案仍为「Muse 工作台」；浏览器端 cordis client 插件；宿主侧为空壳）
 ```
 
 全部注册进 `~/.dsh/profiles/web/cordis.patch.yml`（web profile）与

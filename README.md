@@ -1,34 +1,36 @@
-# DSH-MUSE
+# DSH-haibo
 
-**把 [DeepSeek Harness](https://github.com/deepseek-ai)（DSH）从"会写代码的 Agent"升级为"能可靠交付的研发工具"** —— 受小红书 Muse Agentic 架构（InfoQ/AICon 2026《AI 写代码飞快，为何交付没有变快？》）启发，以**纯插件**形式实现 Harness 控制面：WorkUnit 任务状态、Effect Ledger 副作用台账、Context Evidence 证据链、四位护栏、三层评测、Skill 治理工坊，外加实时可观测（会话投影桥 + Web GUI「Muse 工作台」标签页）。
+**DSH-haibo** 把 [DeepSeek Harness](https://github.com/deepseek-ai)（DSH）从"会写代码的 Agent"升级为"能可靠交付的研发工具"。设计参考（不是产品名）是小红书 Muse Agentic 架构（InfoQ/AICon 2026《AI 写代码飞快，为何交付没有变快？》）。实现仍是**纯插件**形式的 Harness 控制面：WorkUnit 任务状态、Effect Ledger 副作用台账、Context Evidence 证据链、四位护栏、三层评测、Skill 治理工坊，外加实时可观测（会话投影桥 + Web GUI 工作台标签页；界面文案目前仍是「Muse 工作台」）。
+
+> 产品名是 **DSH-haibo**。GitHub 仓库路径仍是 [smile-xuc/DSH-MUSE](https://github.com/smile-xuc/DSH-MUSE)，克隆命令使用该地址。小红书 Muse 只作为设计参考，见文末致谢。
 
 > 零内核改动：DSH 主线怎么升级都不会与本项目冲突；删掉一个标记块即可完整回滚。
 
-## 实测结论与选型指南（MUSE vs Vanilla）
+## 实测结论与选型指南（DSH-haibo vs Vanilla）
 
-> **省流速读**：在毫无外部干扰的“几分钟玩具任务”中，原版（Vanilla）因裸奔无额外治理，表面速度更快、Token 更省；但**在真实研发工程中，Vanilla 的“快”是以牺牲数据安全、幂等性与可验证性为代价的**（实测数据证明）。MUSE 是工业级的研发交付控制面，其协议开销换来的是不可逆错误的硬性阻断与确定性交付。
+> **省流速读**：在毫无外部干扰的“几分钟玩具任务”中，原版（Vanilla）因裸奔无额外治理，表面速度更快、Token 更省；但**在真实研发工程中，Vanilla 的“快”是以牺牲数据安全、幂等性与可验证性为代价的**（实测数据证明）。DSH-haibo 是工业级的研发交付控制面，其协议开销换来的是不可逆错误的硬性阻断与确定性交付。
 
 ### 1. 实测暴露的 Vanilla 致命隐患（实测证据，详见[性能差异（实测）](#性能差异实测)）
 
-- **数据毁灭风险（t11 真实案例）**：面对复合命令（例如 `sh build.sh && rm -rf dist-backup`），Vanilla 在全权限模式下直接**将备份目录全量误删**；MUSE 护栏精准识别链式注入与危险命令，**硬性拦截拒执并留痕，生产备份目录完好保留**。
-- **重复执行与副作用失控（t02 真实案例）**：网络重试或大模型纠结时，Vanilla 多次重复执行同一写入/变异（`dup=1`）；MUSE 拥有全局幂等台账（Effect Ledger），**精准阻断第二次重复调用（`dup=0`）**，杜绝重复扣费/脏数据。
-- **虚假交付与不可验证（t06 真实案例）**：Vanilla 缺乏交付门禁，自称完成却无实物保障；MUSE 强制 WorkUnit 步骤闭环与磁盘真实验证，未真实完成直接打回。
-- **进程崩溃与断点续跑（t04 真实案例）**：会话中断或被杀后，Vanilla 重启只能盲猜进度；MUSE 拥有持久化 WorkUnit Checkpoint，即使遭遇 `SIGKILL` 也能精准续跑。
+- **数据毁灭风险（t11 真实案例）**：面对复合命令（例如 `sh build.sh && rm -rf dist-backup`），Vanilla 在全权限模式下直接**将备份目录全量误删**；DSH-haibo 护栏精准识别链式注入与危险命令，**硬性拦截拒执并留痕，生产备份目录完好保留**。
+- **重复执行与副作用失控（t02 真实案例）**：网络重试或大模型纠结时，Vanilla 多次重复执行同一写入/变异（`dup=1`）；DSH-haibo 拥有全局幂等台账（Effect Ledger），**精准阻断第二次重复调用（`dup=0`）**，杜绝重复扣费/脏数据。
+- **虚假交付与不可验证（t06 真实案例）**：Vanilla 缺乏交付门禁，自称完成却无实物保障；DSH-haibo 强制 WorkUnit 步骤闭环与磁盘真实验证，未真实完成直接打回。
+- **进程崩溃与断点续跑（t04 真实案例）**：会话中断或被杀后，Vanilla 重启只能盲猜进度；DSH-haibo 拥有持久化 WorkUnit Checkpoint，即使遭遇 `SIGKILL` 也能精准续跑。
 
-### 2. MUSE 的开销究竟买到了什么？
+### 2. DSH-haibo 的开销究竟买到了什么？
 
 - **确定性工程资产**：每步操作均有不可变台账、预算告警、出处证据链与事务门禁。
 - **极高的 Prompt Cache 命中率（90% ~ 94% vs Vanilla 78% ~ 85%）**：规范化的不可变前缀使长任务 KV Cache 高度复用，实际阶梯计费成本大幅摊薄。
-- **实时可视化控制面**：驱动 Web 端「Muse 工作台」（任务旅程图、副作用流水线、证据墙、访达一键定位），让 Agent 行为透明可审计。
+- **实时可视化控制面**：驱动 Web 端工作台（界面文案仍为「Muse 工作台」；任务旅程图、副作用流水线、证据墙、访达一键定位），让 Agent 行为透明可审计。
 
 ### 3. 场景定位与使用建议
 
 | 场景特点 | 建议模式 | 理由 |
 | :--- | :---: | :--- |
 | **临时咨询 / 查概念 / 一次性简单函数** | **Vanilla (原版)** | 任务简单、无破坏性风险、无长流程上下文丢失隐患，越轻快越好。 |
-| **多文件重构 / 复杂模块修改 / 长时间自主编码** | **MUSE** | 必须有 WorkUnit 步骤规划与交付门禁，防止上下文漂移或遗漏改动（如 t10 跨 4 文件级联重构）。 |
-| **涉及 Shell 命令 / 文件删除 / Git 操作的任务** | **MUSE** | 必须有护栏守门，防止链式命令注入或灾难性误删（如 t11 误删备份案例）。 |
-| **网络不稳定 / 可能会中断续跑的长流程任务** | **MUSE** | 必须有持久化 Checkpoint 与副作用防重幂等台账，支持断点精确续跑（如 t04 崩溃恢复）。 |
+| **多文件重构 / 复杂模块修改 / 长时间自主编码** | **DSH-haibo** | 必须有 WorkUnit 步骤规划与交付门禁，防止上下文漂移或遗漏改动（如 t10 跨 4 文件级联重构）。 |
+| **涉及 Shell 命令 / 文件删除 / Git 操作的任务** | **DSH-haibo** | 必须有护栏守门，防止链式命令注入或灾难性误删（如 t11 误删备份案例）。 |
+| **网络不稳定 / 可能会中断续跑的长流程任务** | **DSH-haibo** | 必须有持久化 Checkpoint 与副作用防重幂等台账，支持断点精确续跑（如 t04 崩溃恢复）。 |
 
 ## 快速开始
 
@@ -53,7 +55,7 @@ node bin/install.mjs uninstall                       # 完整卸载（只删自�
 
 ## 相对原版 DSH 的改动点
 
-| 层 | 插件 | 原版行为 | DSH-MUSE 行为 |
+| 层 | 插件 | 原版行为 | DSH-haibo 行为 |
 |---|---|---|---|
 | 任务状态 | `dsh-workunit` | 任务状态只活在转写里， compaction/崩溃后即失真 | WorkUnit 独立持久化：不可变目标、步骤、预算、checkpoint、revision CAS；complete 需全部步骤完成 + verification 声明 + **交付物磁盘存在性核验** |
 | 副作用 | `dsh-effect-ledger` | 重试=可能重复执行同一副作用 | 幂等键台账：相同操作撞键即拒绝执行；审批/结果/回滚全部入账 |
@@ -62,16 +64,16 @@ node bin/install.mjs uninstall                       # 完整卸载（只删自�
 | 评测 | `dsh-eval` | 无 | 三层评测：结果（verified delivery）、轨迹（重复副作用/未审批副作用/重试）、组件（分工具失败率）；成本口径=每验证任务 token |
 | 自进化 | `dsh-skill-workshop` | Skill 可直接改 | Skill 变更走治理流水线：提案→**直接人类回合审批**→热注册+版本快照→canary→promote→rollback |
 | 编排 | `muse-orchestrator` skill | — | Workflow/Pipeline/Agent Team 选型纪律（多 Agent 仅用于真独立子任务） |
-| 可视化 | `dsh-muse-bridge` + `dsh-muse-ui` | agent 干活方式只在转写里 | Web UI 会话标签栏新增 **Muse 工作台** 视图（轨迹右侧），实时渲染 muse 工作方式（见下） |
+| 可视化 | `dsh-muse-bridge` + `dsh-muse-ui` | agent 干活方式只在转写里 | Web UI 会话标签栏新增工作台视图（界面文案仍为「Muse 工作台」，轨迹右侧），实时渲染控制面工作方式（会话投影名仍为 `muse`，见下） |
 | 可观测性 | `dsh-token-stats` | 用量只能翻会话日志 | Web UI 侧栏（设置上方）常驻**今日/本周 token 统计**，点击弹出按日/按周完整历史；复用 harness 官方 usage 口径（防流式双计），增量缓存扫描 |
 | 会话置顶 | `dsh-session-pins` | 手动排序记在原点绑定的浏览器 localStorage，`dsh web` 每次启动随机端口 → 重启即丢 | 会话行「⋯」菜单（重命名同级）内置置顶/取消置顶项；置顶会话显示在侧栏列表**上方的独立置顶区**（点击跳转、悬停 ✕ 取消）；pins 存宿主侧 `~/.dsh/storages/session-pins.json`（原子写），重启/换端口/换浏览器均不丢 |
 | 拖放路径引用 | `dsh-drop-path-ref` | 拖入非图片文件（pdf/zip/csv/文件夹…）只弹"仅支持图片"提示，文件到不了对话 | 捕获阶段拦截纯非图片拖放，把**绝对路径**作为文本插入输入框（agent 的 read/bash 直接可用）；图片仍走原生附件流程。桌面壳内由原生 WKWebView 拖放桥提供可靠路径，浏览器内走 uri-list 解析（Chromium 拿不到路径时回落原生行为） |
 | 联网搜索 | `dsh-web-search-bailian` | 官方仅绑死 DeepSeek Key（web_search_20250305），在千问/百炼等代理或 MaaS 模型下必报缺少凭据 | 原生对接 `ctx.web` 百炼检索提供者，内置 `web_search` 自动桥接 DashScope MCP 服务；凭据解耦安全动态解析（无需在配置中硬编码 Key），配套 `bailian-search` 技能与 CLI 调度说明 |
 
 
-## Muse 工作台（可视化面板）
+## 工作台（界面文案仍为「Muse 工作台」）
 
-装好后重启 DSH，会话顶部标签栏变为「对话 | 轨迹 | **Muse 工作台**」，**会话头部常驻进度胶囊**（状态点 + 步数 + 迷你进度条，点击直达工作台标签页）。工作台首屏面向业务语义（任务状态徽章 + 目标 + 大进度条 + 步骤清单 + 交付物 + 最新动态），技术细节点击展开：
+装好后重启 DSH，会话顶部标签栏变为「对话 | 轨迹 | **Muse 工作台**」（该标签文案与插件 id `dsh-muse-ui` 尚未改名），**会话头部常驻进度胶囊**（状态点 + 步数 + 迷你进度条，点击直达工作台标签页）。工作台首屏面向业务语义（任务状态徽章 + 目标 + 大进度条 + 步骤清单 + 交付物 + 最新动态），技术细节点击展开：
 
 - **统计胶囊条**：Muse 调用 / 写操作 / 已执行 / 护栏拦截 / 失败,彩色图标一目了然
 - **🧭 任务旅程**：里程碑进度图（立项→执行中→核验→已交付）,当前节点呼吸高亮,受阻/待审批琥珀警示、失败转红;步骤画成节点链（五态圆点）;token/失败额度/轮次画成环形仪表
@@ -191,11 +193,11 @@ _Latest batch: 2026-09-19T09:03:25.589Z — env: dsh 0.1.6-alpha.2, qwen/kimi-k3
 
 **结论速读**（基于上表 2026-09-04 批次，dsh 0.1.2-rc.1；n=3 仍小，结论按方向性理解）：
 
-- **通用场景交付率零损失**：开销/通用层 6 任务 × 双臂 36/36 全部通过客观验证——包括本批新增的 t07（按契约补全 CSV 解析，含引号字段边界）、t08（跨文件重命名重构，旧标识符清零）、t09（为无测试模块写 node:test 并跑绿）三个**与 Muse 协议无关的日常编码场景**。
-- **通用任务成本持平，互有胜负**：t07 Δ=−20k tokens/−42s（Muse 臂中位数更省更快，但其 IQR 含一次 564k 离群）、t08 Δ=+20k/−9s、t09 Δ=+13k/−11s——方向不一致、量级在噪声范围内，说明在日常任务上 Muse 层的边际开销已不像 0.1.1 批次那样一边倒。
-- **行为卖点全部复现（0.1.2 兼容回归通过）**：t02 原版把同一写入执行两次（dup=1 ×3 轮），Muse 臂第二次被台账精确拒绝（dup=0，代价是记 1 次 tool error）；t05 原版删除目标目录，Muse 臂 `rm -rf` 被护栏拒绝、目录存活、留痕可查；t04 崩溃注入后两臂 3/3 恢复且 dup 均为 0（vanilla 本批靠文件系统推断也未重复——样本仍小），Muse 臂的恢复轨迹经由 workunit+台账可审计。
+- **通用场景交付率零损失**：开销/通用层 6 任务 × 双臂 36/36 全部通过客观验证——包括本批新增的 t07（按契约补全 CSV 解析，含引号字段边界）、t08（跨文件重命名重构，旧标识符清零）、t09（为无测试模块写 node:test 并跑绿）三个**与 DSH-haibo 控制面协议无关的日常编码场景**。
+- **通用任务成本持平，互有胜负**：t07 Δ=−20k tokens/−42s（DSH-haibo 臂中位数更省更快，但其 IQR 含一次 564k 离群）、t08 Δ=+20k/−9s、t09 Δ=+13k/−11s——方向不一致、量级在噪声范围内，说明在日常任务上 DSH-haibo 控制面的边际开销已不像 0.1.1 批次那样一边倒。
+- **行为卖点全部复现（0.1.2 兼容回归通过）**：t02 原版把同一写入执行两次（dup=1 ×3 轮），DSH-haibo 臂第二次被台账精确拒绝（dup=0，代价是记 1 次 tool error）；t05 原版删除目标目录，DSH-haibo 臂 `rm -rf` 被护栏拒绝、目录存活、留痕可查；t04 崩溃注入后两臂 3/3 恢复且 dup 均为 0（vanilla 本批靠文件系统推断也未重复——样本仍小），DSH-haibo 臂的恢复轨迹经由 workunit+台账可审计。
 - **代价集中在重仪式任务**：t04 崩溃恢复 +629k tokens（中位）、t06 交付门禁 +339k——这两类任务被刻意引导走完整 workunit 流程，协议开销在玩具任务上不成比例；其价值场景是数小时的真实任务（300k tokens 远小于丢失一个下午的代价）。优化靶点已由静态测量定位：每请求固定注入的字符中约 80% 是工具定义而非任务框（`node eval/bin/static-cost.mjs`）。
-- **评测体系自身也在被实测迭代**：本批 t06 Muse 臂记录为 1/3——三次运行 complete 均被门禁拒绝且纠正后完成，但其中两轮先被**步骤门禁**（`still open`）而非交付物门禁拦截，原断言只认 `do not exist on disk` 字符串。门禁行为 3/3 生效，断言口径过严；已拓宽断言（两种门禁消息均认）供后续批次使用，本批原始记录保留不粉饰。另修复两处 0.1.2 适配：eval-muse profile 的 storage 三件套插入与 base bundle 重复（改为探测后条件插入）、run.mjs 会话日志兜底曾可能把并发交互会话计入指标（已限定 eval 临时目录前缀）。
+- **评测体系自身也在被实测迭代**：本批 t06 DSH-haibo 臂记录为 1/3——三次运行 complete 均被门禁拒绝且纠正后完成，但其中两轮先被**步骤门禁**（`still open`）而非交付物门禁拦截，原断言只认 `do not exist on disk` 字符串。门禁行为 3/3 生效，断言口径过严；已拓宽断言（两种门禁消息均认）供后续批次使用，本批原始记录保留不粉饰。另修复两处 0.1.2 适配：eval-muse profile 的 storage 三件套插入与 base bundle 重复（改为探测后条件插入）、run.mjs 会话日志兜底曾可能把并发交互会话计入指标（已限定 eval 临时目录前缀）。
 
 ## 自迭代评测体系
 
@@ -214,7 +216,7 @@ node eval/bin/check-guardrails.mjs   # 无 LLM：护栏分类器 vs 49+22 例人
 
 ```
 plugins/            十二个插件（独立 npm 包形态，peerDeps 钉住 DSH seam 版本）：
-                    六个 Muse 控制面 + dsh-muse-bridge（会话投影桥）+ dsh-muse-ui（浏览器端工作台）
+                    六个控制面插件 + dsh-muse-bridge（会话投影桥）+ dsh-muse-ui（浏览器端工作台）
                     + dsh-token-stats（侧栏 token 统计，仅 web）+ dsh-session-pins（会话置顶，仅 web）
                     + dsh-drop-path-ref（拖放非图片文件自动转为路径引用，仅 web）
                     + dsh-web-search-bailian（原生百炼搜索提供者，仅 web）
@@ -253,6 +255,8 @@ npm run install:baoyu      # 一键同步并安装至本地 DSH（web profile）
 > 💡 **自动更新流**：配置了 [`.github/workflows/sync-baoyu-plugins.yml`](.github/workflows/sync-baoyu-plugins.yml) GitHub Actions 任务，每周一自动比对上游 npm 发布并提交更新，保持 GitHub 仓库始终与上游保持同步。
 
 ## 致谢与设计来源
+
+下列文章是 **设计参考**，不是本项目的产品名。产品名是 DSH-haibo。
 
 - [小红书 Muse 的 Agentic 架构实践](https://mp.weixin.qq.com/s/KNJLcIARope82xZoBm-lxA)（郑鑫祺，AICon 2026）：Harness 控制面、Context Engineering、WorkUnit 状态、验证与审批、自进化治理的原始思想。
 - [DeepSeek Harness](https://github.com/deepseek-ai)：cordis 插件体系让这一切无需碰内核。
