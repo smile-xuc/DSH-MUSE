@@ -1,6 +1,6 @@
 # DSH-haibo：自用高效研发工具交付说明
 
-> 产品名是 **DSH-haibo**。本文件名仍为 `DSH-MUSE-README.md`，仓库路径仍是 `smile-xuc/DSH-MUSE`。
+> 产品名是 **DSH-haibo**。本文件名仍为 `DSH-MUSE-README.md`，仓库路径是 [`smile-xuc/DSH-haibo`](https://github.com/smile-xuc/DSH-haibo)。
 >
 > 设计参考（不是产品名）来自 InfoQ 文章《AI 写代码飞快，为何交付没有变快？小红书 Muse 的 Agentic 架构实践》的
 > 设计契约（`~/.dsh/profiles/plugins/MUSE-DESIGN.md`），把 DSH 改造成带 Harness 控制面的
