@@ -1,0 +1,15 @@
+# 隔离 profile superagent 的用户层补丁样例。
+# 安装步骤：docs/home-host.md#host-install
+# 复制到 $DSH_HOME/profiles/superagent/cordis.patch.yml 之前，把 stateDir 的占位符换成绝对路径。
+# 只替换 superagent 这一份。不要写入默认 profile，也不要写入 haibo 安装器的标记块。
+# 飞书条目保持注释。观察模式健康之前不要取消注释。
+- id: webserver
+  config:
+    host: 127.0.0.1
+    port: 3082
+- id: dsh-superagent
+  config:
+    stateDir: __STATE_DIR__
+# 飞书在 v0 关闭。不要取消下面两行的注释。
+# - id: dsh-superagent-feishu
+#   disabled: false

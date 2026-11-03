@@ -1,0 +1,19 @@
+{
+  "github": {
+    "enabled": true,
+    "config": {
+      "repository": "smile-xuc/DSH-haibo",
+      "cli": "__GH_AGENT__",
+      "observeIssues": false,
+      "observePulls": false,
+      "observeComments": false,
+      "observeCi": false
+    }
+  },
+  "eval": {
+    "mode": "observe"
+  },
+  "executor": {
+    "prepare": ""
+  }
+}
