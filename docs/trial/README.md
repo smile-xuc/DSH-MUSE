@@ -6,7 +6,9 @@
 - 不要写进默认 profile 的 `# >>> dsh-muse >>>` 标记块。
 - 不要把令牌、模型密钥或 `gh` 凭据填进这些文件再提交。
 
-步骤在 [docs/home-host.md 的主机安装步骤](../home-host.md#host-install)。样例：
+步骤在 [docs/home-host.md 的主机自助安装](../home-host.md#host-install)。样例：
+
+试验在设计上是 [Super Agent](../super-agent.md) 的阶段 0（只观察，不接单）。官方 DSH 还缺的能力记在 [上游待办](../upstream-backlog.md)。这两份都是设计，不是本目录已经实现的功能。
 
 | 文件 | 用途 |
 |---|---|
