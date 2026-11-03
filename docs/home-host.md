@@ -2,15 +2,17 @@
 
 产品名是 **DSH-haibo**。小红书 Muse Agentic 架构只作设计参考，见 [README 致谢](../README.md#致谢与设计来源)。本文不改安装器，也不把上游原型并进 haibo。
 
+Super Agent 要做成什么样，见 [docs/super-agent.md](super-agent.md)。那是设计，不是已实现的功能。官方 DSH 还没有、本仓库因此只跟踪的缺口，见 [docs/upstream-backlog.md](upstream-backlog.md)。
+
 ## 拓扑
 
-- **家庭主机**是唯一长期运行的 DSH runtime。手机和笔记本只做客户端（浏览器或桌面壳连到这台主机），不各自再养一套长期 runtime。
+- **家庭主机**是唯一长期运行的 DSH runtime。手机和笔记本只做客户端（浏览器连到这台主机），不各自再养一套长期 runtime。桌面壳是主机本机的窗口，不是远程客户端，见 [客户端设备](#client-devices)。在线状态与中继还没有，见 [上游待办](upstream-backlog.md)。
 - 主机上的代码就是这份 [smile-xuc/DSH-haibo](https://github.com/smile-xuc/DSH-haibo)。默认 profile 仍用 `node bin/install.mjs install` 写入 `# >>> dsh-muse >>>` 标记块。不 fork DSH 内核。
 - haibo 插件留在**默认家庭主机 profile**上，继续做治理（WorkUnit、副作用台账、护栏、证据、评测）。
 
 ## 隔离 superagent 试验
 
-可选。单独建一个 DSH profile，名字用 `superagent`。人在家庭主机上的可复制步骤见 [主机安装步骤](#host-install)，样例在 [docs/trial/](trial/)。上游 [deepseek-ai/dsh-superagent-prototype](https://github.com/deepseek-ai/dsh-superagent-prototype) 的 [SETUP.md](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/SETUP.md) 是给代理的问卷；本试验不走那份问卷，答案已经写死在安装步骤里。安装细节仍以同一提交的 [docs/006-deployment.md](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/docs/006-deployment.md) 为准。
+可选。单独建一个 DSH profile，名字用 `superagent`。人在家庭主机上的可复制步骤见 [主机自助安装](#host-install)，样例在 [docs/trial/](trial/)。上游 [deepseek-ai/dsh-superagent-prototype](https://github.com/deepseek-ai/dsh-superagent-prototype) 的 [SETUP.md](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/SETUP.md) 是给代理的问卷；本试验不走那份问卷，答案已经写死在安装步骤里。安装细节仍以同一提交的 [docs/006-deployment.md](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/docs/006-deployment.md) 为准。
 
 不要做的事：
 
@@ -45,6 +47,8 @@ v0 试验默认（允许破损）：
 2. 只在该 profile 打开飞书 Source（`dsh-superagent-feishu` / `feishu-watch`）。不要改 haibo 默认 profile 的标记块。
 3. haibo 插件继续只治理默认家庭主机 profile。
 
+<a id="ci-tip"></a>
+
 ## CI tip 与 cordis
 
 haibo 的 plugin-behavior CI 把 `@deepseek-ai/dsh-*` 钉在 **`0.2.1-rc.5`**。对照 tag `dsh-v0.2.1-rc.5` 的已发布 peer：这些包要 `@deepseek-ai/cordis@~4.0.5`，`@deepseek-ai/schemastery@~3.18.5`，`dsh-llm` / `dsh-storage-domain` 依赖 `zod@4.4.3`。schemastery `3.18.5` 依赖 `@deepseek-ai/cosmokit@~1.8.6`。因此 CI 里的 cordis `4.0.5`、cosmokit `1.8.6`、schemastery `3.18.5`、zod `4.4.3` **保持不动**。npm 上的 `cordis@4.0.6-alpha.1` 不在 `~4.0.5` 里，也不追。
@@ -55,9 +59,94 @@ haibo 的 plugin-behavior CI 把 `@deepseek-ai/dsh-*` 钉在 **`0.2.1-rc.5`**。
 
 <a id="host-install"></a>
 
-## 主机安装步骤
+## 主机自助安装
 
-操作者在家庭主机上自己执行。本仓库只提供步骤和 [docs/trial/](trial/) 样例，不提供远程安装器，也不把令牌写进 git。
+另一台主机上的人可以自己做完：克隆本仓库、把 haibo 装进默认 profile、再按需要做隔离试验。不要远程登录那台机器代劳。本仓库只提供步骤和 [docs/trial/](trial/) 样例，不提供远程安装器，也不把令牌写进 git。
+
+下面「装 haibo」用的命令对照 `bin/install.mjs`、`package.json` 和本文件已有的 DSH 安装行。隔离试验的命令仍对照原型提交 `6337fc823ce20251c8de8085948165c81aaa701e`。写这份说明时没有在一台空主机上把安装跑通；跑不通的地方标了「未验证」。
+
+### 装 haibo 的前提
+
+- Node.js 22。本仓库 CI（`.github/workflows/ci.yml`）用 Node 22。`package.json` 的 `engines.node` 是 `>=20`，`bin/install.mjs` 不检查 Node 版本。隔离试验更严，见下面「隔离 profile 的前提」。
+- git。安装器不调用 git。原型要求 git 2.32+，那一条只约束试验，不约束 `node bin/install.mjs`。
+- DSH **`0.2.1-rc.5`**。命令与下文试验相同，全局安装会把这台机器上的 `dsh` 指到这个 tip：
+
+```sh
+npm install -g @deepseek-ai/dsh@0.2.1-rc.5
+dsh --version
+```
+
+`dsh --version` 的输出里应有 `0.2.1-rc.5`。不要装成 `0.2.2-alpha`，也不要改用原型 `SETUP.md` 示例里的 `0.2.1-rc.3`。
+
+### 克隆或更新
+
+已有检出就只快进：
+
+```sh
+git pull --ff-only
+export HAIBO="$PWD"
+```
+
+还没有检出：
+
+```sh
+git clone https://github.com/smile-xuc/DSH-haibo.git
+cd DSH-haibo
+export HAIBO="$PWD"
+```
+
+后面的样例路径用 `$HAIBO`。不要把原型克隆到 `$HAIBO` 里面。
+
+### 安装 haibo
+
+安装器只认已经存在的 profile 目录。默认 profile 名是 `web`，路径是 `$DSH_HOME/profiles/web`（`DSH_HOME` 默认 `~/.dsh`）。目录不存在时，`install` 抛出 `profile 'web' not found at ...`，不会创建 profile。
+
+上游 CLI 把 `web` 当作发行版自带的 profile 名，不能拿它当 `--from-default-profile` 的目标（tag `dsh-v0.2.1-rc.5` 的 `apps/cli/reference/README.md`）。本次没有在空的 `DSH_HOME` 上确认 `$DSH_HOME/profiles/web` 是全局安装后就有，还是第一次 `dsh web` 才有。若安装器报 profile 不存在，先在这台主机执行：
+
+```sh
+dsh web --dump-config
+```
+
+上游写明 `--dump-config` 会组合配置、打印后退出。**未验证**：这条命令会不会创建 `$DSH_HOME/profiles/web`。目录仍然不存在就停，不要给安装器加它没有的旗标。
+
+目录在了以后，在 `$HAIBO`：
+
+```sh
+node bin/install.mjs install
+node bin/install.mjs status
+```
+
+不写子命令时，`bin/install.mjs` 把命令当成 `install`（源码默认 `argv[2] ?? 'install'`）。文档仍写出 `install`。它只接受 `--profile` 和 `--home`。默认 `--profile web`，默认 `--home` 为环境变量 `DSH_HOME`，否则为 `~/.dsh`。其他参数会抛 `unknown argument`。
+
+```sh
+node bin/install.mjs install --profile web
+node bin/install.mjs status --profile web --home "$HOME/.dsh"
+```
+
+成功时最后一行是：`[dsh-muse] installed into profile 'web'. Restart DSH to activate. Rollback: node bin/install.mjs uninstall`。然后重启这台机器上的 `dsh web`（或本机桌面壳）。装好之后界面上应有的东西，以根目录 README 的「快速开始」为准。本次没有重启一台 DSH 来看标签页。
+
+`status` 打印两行：profile 的补丁是 `ACTIVE` 还是 `absent`，以及已拷贝的插件名；第二行是 UI bundle `present` 或 `MISSING`。`ACTIVE` 且没有 `MISSING` 才算装上。
+
+不要对 `superagent` 跑安装器。haibo 标记块只留在默认家庭主机 profile。
+
+### 核对、卸载、回滚
+
+没有 `--rollback`、`--dry-run` 或 `--force`。回滚就是安装器自己打印的卸载：
+
+```sh
+node bin/install.mjs uninstall
+node bin/install.mjs status
+```
+
+`uninstall` 删掉的是它自己写上的东西：`$DSH_HOME/profiles/plugins/dsh-muse`、该 profile 的 `node_modules` 里那些符号链接、该 profile `package.json` 里对应的 `link:` 依赖，以及 `cordis.patch.yml` 里从 `# >>> dsh-muse (managed — do not edit between markers) >>>` 到 `# <<< dsh-muse <<<` 的标记块（`bin/manifest.mjs` 的 `MARK_BEGIN` / `MARK_END`）。标记块中间夹着的非 muse 配置会被留在块外面，不随卸载删掉。卸载后要再重启 DSH。`status` 此时应是补丁 `absent`。
+
+技能：默认 home 时，安装把 `skills/` 拷到 `~/.agents/skills/`，并把 `$DSH_HOME/skills` 设成指向那里的符号链接。卸载删的是 `$DSH_HOME/skills/<技能名>`。链接存在时，这会删到链接目标里的同名目录。自定义 `--home` 时技能在该 home 的 `skills/` 下，卸载同样按清单删除那两个技能名（`muse-orchestrator`、`bailian-search`，见 `bin/manifest.mjs` 的 `SKILLS`）。若 `$DSH_HOME/skills` 已经是真实目录而不是符号链接，`install` 会抛错并停：`.../skills is a real directory; move its skills into .../.agents/skills and replace the directory with a symlink first`。先按这句话处理，不要换旗标。
+
+UI bundle：`plugins/dsh-muse-ui/lib/client.js` 随仓库提交。它缺失时 `install` 只警告、不失败，工作台标签页不会加载。警告原文要你执行 `npm ci && npm run build:ui`（`package.json` 里有 `build:ui`）。克隆官方仓库时这个文件应在。不要为了装 haibo 去跑评测。
+
+### 隔离 profile
+
+可选。做 Super Agent 的阶段 0 时才做，见 [设计](super-agent.md)。样例在 [docs/trial/](trial/)，安装器不读它们。
 
 上游 `SETUP.md` 要求代理逐题询问。本节把 v0 答案写死：
 
@@ -107,39 +196,30 @@ gh-agent api repos/smile-xuc/DSH-haibo --jq '{name: .full_name, push: .permissio
 
 期望输出的 `name` 是 `smile-xuc/DSH-haibo`，`push` 是 `true`。`push` 为 `false` 或命令失败时，停。给这个账号只在该仓库加 Write，不要加到其他仓库，也不要改成 Admin，除非 Write 仍过不了上面这条 `gh api`（上游只判断 `permissions.push === true`）。
 
-### 1. 前提
+### 隔离 profile 的前提
 
 家庭主机需要：
 
-- Node.js 22.19+ 或 24+（原型 `engines.node`；比 haibo 文档里的 Node 20 更严）
+- Node.js 22.19+ 或 24+（原型 `engines.node`。上面装 haibo 写的是 Node 22；原型比 `package.json` 的 `>=20` 更严）
 - pnpm。原型 `packageManager` 是 `pnpm@11.7.0`。可用 `corepack enable && corepack prepare pnpm@11.7.0 --activate`
 - git 2.32+、Python 3.8+、tmux、curl、jq
 - GitHub CLI `gh` 2.48+
-- 操作者自己的 `gh auth login`（用来克隆，以及作为允许发起的登录名）。这与下一步的代理包装是两套 `GH_CONFIG_DIR`
+- 操作者自己的 `gh auth login`（用来克隆，以及作为允许发起的登录名）。这与第 5 节的 `gh-agent` 包装是两套 `GH_CONFIG_DIR`
 - DSH 模型供应商配在 **superagent** profile 本地。新建 profile 来自自带 web 模板，不会带上默认 profile 里的模型配置。密钥留在本机
 
-cordis / schemastery 的 alpha 精确 peer 见上一节。`pnpm install` 用的是原型锁文件里的 alpha；跑在 `0.2.1-rc.5` 里时，稳定版 `4.0.5` / `3.18.5` 对不上。面板报插件不兼容或加载失败，是这项已知破损。不要把 alpha cordis 写进 haibo 的 CI 或默认 profile。
+cordis / schemastery 的 alpha 精确 peer 见 [CI tip 与 cordis](#ci-tip)。`pnpm install` 用的是原型锁文件里的 alpha；跑在 `0.2.1-rc.5` 里时，稳定版 `4.0.5` / `3.18.5` 对不上。面板报插件不兼容或加载失败，是这项已知破损。不要把 alpha cordis 写进 haibo 的 CI 或默认 profile。
 
-### 2. 克隆或更新 haibo
+### 确认本仓库路径
 
-已有检出就只更新：
+克隆命令在上面「克隆或更新」，两边相同。没有 `$HAIBO` 时先做那一节，再：
 
 ```sh
-git pull --ff-only
 export HAIBO="$PWD"
 ```
 
-还没有检出：
+不要把原型拷进 `$HAIBO/plugins/`。不要用 `node bin/install.mjs` 把原型装进任何 profile。haibo 自己的安装只对默认 profile 做，见上面「安装 haibo」。不要对 `superagent` 再跑安装器。默认 profile 上已有的标记块保持不动。
 
-```sh
-git clone https://github.com/smile-xuc/DSH-haibo.git
-cd DSH-haibo
-export HAIBO="$PWD"
-```
-
-后面的样例路径用 `$HAIBO`。不要把原型拷进 `$HAIBO/plugins/`。不要对任何 profile 运行 `node bin/install.mjs` 来装原型。默认 profile 上已有的 haibo 标记块保持不动。
-
-### 3. 建立隔离 profile
+### 建立隔离 profile
 
 `DSH_HOME` 默认是 `~/.dsh`。profile 已存在时不要再跑 `--from-default-profile`：它会换掉整个 profile，并删掉已有的 `cordis.patch.yml`。
 
@@ -159,6 +239,8 @@ dsh superagent --from-default-profile web --dump-config > /dev/null
 grep -n 'dsh-muse' "$DSH_HOME/profiles/superagent/cordis.patch.yml" && echo 'stop: haibo marker is on superagent' && exit 1
 echo 'superagent user patch has no dsh-muse marker'
 ```
+
+下面第 4 到第 9 节沿用原来的编号。正文里的「第 5 步」「第 6、7、8 步」指这些标题。
 
 ### 4. 按上游安装原型，DSH 使用 rc.5
 
@@ -398,3 +480,76 @@ Check dsh-superagent: run `scripts/dsh-superagent --profile superagent status` i
 - 不要改 haibo 默认 profile 的标记块。
 
 haibo 插件继续只治理默认家庭主机 profile。
+
+<a id="client-devices"></a>
+
+## 客户端设备
+
+手机、笔记本和其他电脑只做这台家庭主机的客户端。它们不各自长期跑一份 DSH，也不在主机离线时改到本机执行。主机停了：客户端显示离线，并只给只读提示；触发和任务随主机停止。这是约定，没有客户端实现，见待办 [UB-7](upstream-backlog.md)。
+
+本仓库的 `desktop/` 是主机上的 macOS 窗口（WKWebView 交换本机启动 URL 的 cookie），不是「连接到远程 DSH」。上游有没有原生远程连接模式，审计未搜完，见待办 [UB-2](upstream-backlog.md)。现在能用的是浏览器打开主机公布的地址。
+
+在线名单和心跳上游没有（待办 [UB-3](upstream-backlog.md)）。自建中继也没有（待办 [UB-4](upstream-backlog.md)）。临时连通都跑在 DSH 外面，或只用 tag `dsh-v0.2.1-rc.5` 已经写明的旗标。本次没有在家庭网络里配过 Tailscale、Caddy 或 Cloudflare Tunnel。
+
+持有签名 cookie 的人拥有这台主机上完整的工具能力。明文 HTTP 会把 cookie 送出去。远程访问要 TLS，加上反代或私人网络，并且在公开到互联网之前还有一层代理鉴权。启动 URL 里的 token 不要贴到仓库或聊天。详见 [设计红线](super-agent.md#red-lines) 与待办 [UB-1](upstream-backlog.md)。
+
+临时接法，三选一即可：
+
+- **Tailscale。** 主机和客户端进同一个 tailnet，浏览器打开主机在 tailnet 里的地址。DSH 仍要用 `--trusted-host` 放行浏览器实际使用的主机名。本文不把「进了 tailnet 就可以用明文 HTTP」写成已经验证的结论。更稳妥的是 tailnet 上仍用 HTTPS，并且不要把端口暴露到 tailnet 以外。
+- **反代加域名 TLS。** 按上游 [public-deployments](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.1-rc.5/docs/user/guide/public-deployments.md)。旗标出处是同一 tag 的 [CLI 参考](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.1-rc.5/apps/cli/reference/README.md)。`--public-url` 只公布地址，不授予信任。`--trusted-host` 才放行 Host/Origin。`--host` 必须是一个具体的本机地址；`0.0.0.0` 和 `::` 会报错退出。证书和私钥要成对：
+
+反代终结 TLS 时，监听器可以仍是 HTTP。上游示例是：
+
+```sh
+dsh web --host "$(hostname -i | awk '{print $1}')" --public-url https://app.example/ --trusted-host app.example
+```
+
+监听器自己终结 TLS 时是另一条，不要和上面那条当成必须连着跑的两步：
+
+```sh
+dsh web --tls-cert ./server-chain.pem --tls-key ./server-key.pem
+```
+
+把 `app.example` 换成真正的域名。`--host` 是一个本机网卡上的 IPv4 或 IPv6 字面量。`hostname -i` 可能列出多个地址，示例只取第一个；取错就换成你要绑定的那一个。证书文件是完整链，私钥是未加密的 PEM。两条 TLS 旗标必须成对。DSH 不申请、不续期证书。反代要保留浏览器看到的 `Host`、转发 WebSocket，并按上游那份文档改写 cookie 的 `Path`。监听端口只给反代或私人网络，不要直接暴露。本次没有在这台机器上执行 `dsh web`。
+
+- **Cloudflare Tunnel。** 和 Tailscale、Caddy 一样，进程在 DSH 外面。本仓库没有它的配置。
+
+默认家庭主机 profile 上的 haibo 与隔离 `superagent`（端口 `3082`）是两个 profile。客户端日常连的是家庭主机那一个。`superagent` 的管理 API 只接受 `127.0.0.1` 或 `localhost`，不要把它公布到域名上。
+
+## 核对清单
+
+装 haibo 的人在这台主机上逐条看。有一条对不上就停，不要继续开试验。
+
+- `dsh --version` 的输出里有 `0.2.1-rc.5`。
+- `node bin/install.mjs status` 里补丁是 `ACTIVE`，插件行没有 `MISSING`，UI bundle 是 `present`。
+- 默认 profile 的 `cordis.patch.yml` 里有 `# >>> dsh-muse (managed — do not edit between markers) >>>`。`superagent` 的补丁里没有 `dsh-muse`。还没建 `superagent` 时，跳过这一半。
+- 重启后的界面以 README「快速开始」为准。本次写文档没有看过一台重启后的界面。
+- 若做了隔离试验：按该节第 8 步的通过条件。`mode` 是 `observe`，仓库是 `smile-xuc/DSH-haibo`，飞书不是 `ready`，没有新的代理分支或 PR。
+- 远程访问没有用明文 HTTP。启动 URL 和 cookie 没有写进仓库。
+
+仓库树本身可以在没有 DSH 的情况下检查：`node build/check-repo.mjs`（CI 的 structural 作业跑的就是它）。它不安装插件，也不代替上面的 `status`。不要为了核对去跑 `eval/bin/run.mjs`。
+
+## 排障
+
+| 现象 | 处理 |
+|---|---|
+| `unknown argument` | 安装器只有 `install`、`uninstall`、`status`，以及 `--profile`、`--home`。没有 `--rollback` |
+| `profile 'web' not found` | profile 目录还不存在。看上面「安装 haibo」。不要对 `web` 使用 `--from-default-profile` |
+| `.../skills is a real directory` | 按报错把真实目录换成指向 `~/.agents/skills` 的符号链接，再装 |
+| `status` 里 UI bundle `MISSING` | 仓库里的 `plugins/dsh-muse-ui/lib/client.js` 不在已安装副本里。官方克隆应自带该文件。缺了才 `npm ci && npm run build:ui`，然后重新 `node bin/install.mjs install` |
+| 卸载后标签还在 | 再重启 DSH。`status` 应已是 `absent` |
+| `superagent` 的补丁里出现 `dsh-muse` | 停。不要在 `superagent` 上装 haibo。按建立隔离 profile 里的 `grep` 处理 |
+| 试验 `status` 退出码 `3` | 还在等 setup。第 6 步配好之前这是预期；第 8 步要求退出码 `0` |
+| 试验 `status` 退出码 `1` | 看 `$PROTO/.artifacts/` 里最新的 `dsh-superagent-superagent-*.log`，以及上游 `006` 的 Troubleshooting。不要改 `eval.mode` |
+| `repositoryReadOnly` | 回到第 5 节的 Write 角色。不要改去别的仓库，也不要发明只读 API。见待办 [UB-8](upstream-backlog.md) |
+| 面板报 cordis / schemastery 不兼容 | 试验里的已知破损，见 [CI tip](#ci-tip) 与待办 [UB-9](upstream-backlog.md)。不要把 alpha 写进 haibo 的 CI |
+| 远程打开是 403 | Host/Origin 不在信任名单。补 `--trusted-host`，或让反代保留浏览器的 `Host`。`--public-url` 不够 |
+| 远程打开是 401 | 地址被信任，但没有有效 cookie。用打印出来的启动 URL 在那台客户端上换 cookie。不要把 URL 转发到聊天里 |
+| 想看 Super Agent 是否已经在跑 | 没有。设计在 [super-agent.md](super-agent.md)，缺口在 [upstream-backlog.md](upstream-backlog.md)。阶段 0 就是上面的 observe 试验 |
+
+## 相关文档
+
+- [Super Agent 能力设计](super-agent.md)
+- [上游待办](upstream-backlog.md)
+- [试验样例](trial/)
+- 根目录 [README](../README.md) 的快速开始与兼容性
