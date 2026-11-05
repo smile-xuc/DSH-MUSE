@@ -2,7 +2,7 @@
 
 产品名是 **DSH-haibo**。本文是设计说明，不是实现记录。仓库里没有对应的插件、安装步骤或运行时代码。凡写着「未验证」的句子，本次没有在目标主机上跑过，或没有把上游文件逐行读完。
 
-拓扑以 [家庭主机](home-host.md) 为准：一台常开的家庭主机是唯一长期运行的 DSH，Router 与 Worker 在同一进程；其他设备只做这台主机的客户端。不要借用 DeepSeek Super-agent 文章里「云上无状态计算 + 设备守护进程」的拆法。上游原型 [deepseek-ai/dsh-superagent-prototype](https://github.com/deepseek-ai/dsh-superagent-prototype) 的提交 [`6337fc823ce20251c8de8085948165c81aaa701e`](https://github.com/deepseek-ai/dsh-superagent-prototype/commit/6337fc823ce20251c8de8085948165c81aaa701e) 只作只读参考，并且只跑在隔离 profile `superagent` 里。不要把它装进 haibo 的 `# >>> dsh-muse >>>` 标记块，也不要把它的源码拷进 `plugins/`。
+拓扑以 [家庭主机](home-host.md) 为准：一台常开的家庭主机是唯一长期运行的 DSH，Router 与 Worker 在同一进程；其他设备只做这台主机的客户端。不要借用 DeepSeek Super-agent 文章里「云上无状态计算 + 设备守护进程」的拆法。上游原型 [deepseek-ai/dsh-superagent-prototype](https://github.com/deepseek-ai/dsh-superagent-prototype) 的提交 [`8c32a9dc5d72c033816c6a8110b37f40cf94fba4`](https://github.com/deepseek-ai/dsh-superagent-prototype/commit/8c32a9dc5d72c033816c6a8110b37f40cf94fba4) 只作只读参考，并且只跑在隔离 profile `superagent` 里。不要把它装进 haibo 的 `# >>> dsh-muse >>>` 标记块，也不要把它的源码拷进 `plugins/`。
 
 官方 DSH 尚未提供、因而本仓库只跟踪、不假装已经有的能力，见 [上游待办](upstream-backlog.md)。
 
@@ -12,7 +12,7 @@
 
 ## 用词
 
-文章里的 Router / Worker，原型里没有同名类。下表是本文用词和提交 `6337fc8` 里实际代码的对应。对应关系来自该提交的 [docs/007-architecture.md](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/docs/007-architecture.md) 与 `src/app/http.ts`。面板路径 `/orchestrator` 在该文件里注册。端口 `3082` 是本仓库试验写死的，见 [profile 样例](trial/profile.cordis.patch.example.yml)，不是上游默认端口的复测。
+文章里的 Router / Worker，原型里没有同名类。下表是本文用词和提交 `8c32a9d` 里实际代码的对应。对应关系来自该提交的 [docs/007-architecture.md](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/8c32a9dc5d72c033816c6a8110b37f40cf94fba4/docs/007-architecture.md) 与 `src/app/http.ts`。面板路径 `/orchestrator` 在该文件里注册。端口 `3082` 是本仓库试验写死的，见 [profile 样例](trial/profile.cordis.patch.example.yml)，不是上游默认端口的复测。
 
 | 本文 | 原型里 | 作用 |
 |---|---|---|
@@ -145,7 +145,7 @@ rc.5 的浏览器认证（本次对照 tag `dsh-v0.2.1-rc.5` 读过）：
 
 ## 本次核对与未验证
 
-核对过（2026-11-03，对 tag `dsh-v0.2.1-rc.5` 与原型 `6337fc8` 的文件，不是对一台家庭主机的安装）：
+核对过（2026-11-03，对 tag `dsh-v0.2.1-rc.5` 与原型 `8c32a9d` 的文件，不是对一台家庭主机的安装）：
 
 - 浏览器认证 note、`browser-auth.ts`、握手 note、peer-principal note、`apps/cli/reference/README.md`、`packages/bundle/web-app/src/startup.ts`、`docs/user/guide/public-deployments.md`。
 - base `packages/bundle/base/cordis.patch.yml` 挂着 subagent 工具；`maxActiveSubagents` 默认 8、`maxDepth` 默认 1 在 `packages/subagent/subagent/src/index.ts` 的 schema，不在 patch 里写成字面量。`packages/experimental/agent-team-profile/cordis.patch.yml` 关掉那四条 subagent 工具并插入 agent-team。base patch 与 `packages/bundle/web-app/cordis.patch.yml` 不插入 agent-team。
