@@ -12,7 +12,7 @@ Super Agent 要做成什么样，见 [docs/super-agent.md](super-agent.md)。那
 
 ## 隔离 superagent 试验
 
-可选。单独建一个 DSH profile，名字用 `superagent`。人在家庭主机上的可复制步骤见 [主机自助安装](#host-install)，样例在 [docs/trial/](trial/)。上游 [deepseek-ai/dsh-superagent-prototype](https://github.com/deepseek-ai/dsh-superagent-prototype) 的 [SETUP.md](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/SETUP.md) 是给代理的问卷；本试验不走那份问卷，答案已经写死在安装步骤里。安装细节仍以同一提交的 [docs/006-deployment.md](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/docs/006-deployment.md) 为准。
+可选。单独建一个 DSH profile，名字用 `superagent`。人在家庭主机上的可复制步骤见 [主机自助安装](#host-install)，样例在 [docs/trial/](trial/)。上游 [deepseek-ai/dsh-superagent-prototype](https://github.com/deepseek-ai/dsh-superagent-prototype) 的 [SETUP.md](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/8c32a9dc5d72c033816c6a8110b37f40cf94fba4/SETUP.md) 是给代理的问卷；本试验不走那份问卷，答案已经写死在安装步骤里。安装细节仍以同一提交的 [docs/006-deployment.md](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/8c32a9dc5d72c033816c6a8110b37f40cf94fba4/docs/006-deployment.md) 为准。
 
 不要做的事：
 
@@ -63,7 +63,7 @@ haibo 的 plugin-behavior CI 把 `@deepseek-ai/dsh-*` 钉在 **`0.2.1-rc.5`**。
 
 另一台主机上的人可以自己做完：克隆本仓库、把 haibo 装进默认 profile、再按需要做隔离试验。不要远程登录那台机器代劳。本仓库只提供步骤和 [docs/trial/](trial/) 样例，不提供远程安装器，也不把令牌写进 git。
 
-下面「装 haibo」用的命令对照 `bin/install.mjs`、`package.json` 和本文件已有的 DSH 安装行。隔离试验的命令仍对照原型提交 `6337fc823ce20251c8de8085948165c81aaa701e`。写这份说明时没有在一台空主机上把安装跑通；跑不通的地方标了「未验证」。
+下面「装 haibo」用的命令对照 `bin/install.mjs`、`package.json` 和本文件已有的 DSH 安装行。隔离试验的命令仍对照原型提交 `8c32a9dc5d72c033816c6a8110b37f40cf94fba4`。写这份说明时没有在一台空主机上把安装跑通；跑不通的地方标了「未验证」。
 
 ### 装 haibo 的前提
 
@@ -162,7 +162,7 @@ UI bundle：`plugins/dsh-muse-ui/lib/client.js` 随仓库提交。它缺失时 `
 | 仓库级旁路开关 | `observeIssues` / `observePulls` / `observeComments` / `observeCi` 全部 `false`（只收点名通知） |
 | DSH | `0.2.1-rc.5`，tag `dsh-v0.2.1-rc.5` |
 
-下文命令对照原型提交 `6337fc823ce20251c8de8085948165c81aaa701e`。若 `main` 上的 `SETUP.md` 或 `006-deployment.md` 改了安装块，以那两份为准，同时保持上表。示例里的 `@deepseek-ai/dsh@0.2.1-rc.3` 改成 `0.2.1-rc.5`。不要改成 `0.2.2-alpha`。
+下文命令对照原型提交 `8c32a9dc5d72c033816c6a8110b37f40cf94fba4`。若 `main` 上的 `SETUP.md` 或 `006-deployment.md` 改了安装块，以那两份为准，同时保持上表。示例里的 `@deepseek-ai/dsh@0.2.1-rc.3` 改成 `0.2.1-rc.5`。不要改成 `0.2.2-alpha`。
 
 ### GitHub 权限：政策收在一个仓库，上游 setup 仍检查 push
 

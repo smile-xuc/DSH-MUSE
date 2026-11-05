@@ -2,7 +2,9 @@
 
 官方 DSH 还没有、因而 **DSH-haibo** 只跟踪、不在本仓库里假装已经实现的能力。产品行为以 [家庭主机](home-host.md) 和 [Super Agent 设计](super-agent.md) 为准。本文不改 CI pin，不改安装器，不把原型并进标记块。
 
-对照版本：**DSH `0.2.1-rc.5`**，tag [`dsh-v0.2.1-rc.5`](https://github.com/deepseek-ai/deepseek-harness/tree/dsh-v0.2.1-rc.5)。原型只读参考是 [dsh-superagent-prototype@6337fc8](https://github.com/deepseek-ai/dsh-superagent-prototype/commit/6337fc823ce20251c8de8085948165c81aaa701e)。下面「rc.5 现状」里写「本次读过」的，是 2026-11-03 对着该 tag 的文件看的。写「审计未找到」的，来自同日审计；本次写文档没有把整棵上游树再扫一遍，刷新时要重做。
+对照版本：**DSH `0.2.1-rc.5`**，tag [`dsh-v0.2.1-rc.5`](https://github.com/deepseek-ai/deepseek-harness/tree/dsh-v0.2.1-rc.5)。原型只读参考是 [dsh-superagent-prototype@8c32a9d](https://github.com/deepseek-ai/dsh-superagent-prototype/commit/8c32a9dc5d72c033816c6a8110b37f40cf94fba4)。下面「rc.5 现状」里写「本次读过」的，是 2026-11-03 对着该 tag 的文件看的。写「审计未找到」的，来自同日审计；本次写文档没有把整棵上游树再扫一遍，刷新时要重做。
+
+2026-11-03 上游 force-push 了 `deepseek-ai/dsh-superagent-prototype` 的 `main`：HEAD 从 `6337fc823ce20251c8de8085948165c81aaa701e` 换成 `8c32a9dc5d72c033816c6a8110b37f40cf94fba4`，两边文件树相同（git tree `3efbb036e5a56183c6bf642e2e1856a1f64e7be3`，236 个条目）。
 
 ## 状态
 
@@ -22,7 +24,7 @@
 - 时间：每周一、每周四。
 - 读 [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) 最新的 `0.2.1-rc.*` 发布说明和 tag（形如 `dsh-v0.2.1-rc.N`）。tip 要不要跟着改，是另一次决定。haibo CI 的 peer 现在钉在 `0.2.1-rc.5`，见 `.github/workflows/ci.yml` 的 plugin-behavior 作业。刷新文档时不要顺手改这些 pin。
 - 在该 tag 上查看下面条目点名的路径。发布说明没提到的，用 tag 上的检索确认，不要用默认分支代替 tag。
-- 原型 pin 看 `dsh-superagent-prototype` 的 `package.json` 里 `@deepseek-ai/cordis` 与 `@deepseek-ai/schemastery`。试验继续只读 `6337fc8`，直到另一次决定更换提交。
+- 原型 pin 看 `dsh-superagent-prototype` 的 `package.json` 里 `@deepseek-ai/cordis` 与 `@deepseek-ai/schemastery`。试验继续只读 `8c32a9d`，直到另一次决定更换提交。
 - 有变化就改对应条目的「rc.5 现状」和文末变更表，并写上新的 tag。没有变化也在变更表留一行「无变化」即可，避免下次不知道上次看到哪。
 
 要盯的包和笔记（路径相对该 tag 的树根）：
@@ -107,7 +109,7 @@
 | 项 | 文章里那种看门狗：主代理的会话之外，另有一方盯着它 |
 | 为什么要 | 只在将来若要照文章做「会话外监督」时才需要。当前 Super Agent 设计明确不把看门狗放进阶段 0–2 |
 | 上游要提供的 | 一个会话外、能观察主代理且权限小于主代理的监督者。不是再开一个持有同一枚 cookie 的客户端 |
-| rc.5 现状 | 2026-11-03 审计未在 rc.5 找到。原型 `6337fc8` 的 README 声明自己不等于该文章的实现；架构文档的组成是 Runtime、Engine、Assessor、Executor、Source，没有单独的 Watchdog 类。本次没有把「watchdog」在整棵树里再搜一遍，**待核对** |
+| rc.5 现状 | 2026-11-03 审计未在 rc.5 找到。原型 `8c32a9d` 的 README 声明自己不等于该文章的实现；架构文档的组成是 Runtime、Engine、Assessor、Executor、Source，没有单独的 Watchdog 类。本次没有把「watchdog」在整棵树里再搜一遍，**待核对** |
 | 临时做法 | 不建。试验里可选的每小时检查是操作者自己的 DSH profile 去看 `scripts/dsh-superagent status`（见 home-host），那是人的巡检提示，不是看门狗 |
 | 怎么跟 | `dsh-upstream-watch`。发布说明与原型变更日志里看 watchdog / supervisor。没有则保持 `not-started` |
 | 状态 | `not-started` |
@@ -149,7 +151,7 @@
 | 项 | 原型 setup 能在仓库只读时通过，或 DSH / `gh` 能给出「仅此仓库、只读」的凭据 |
 | 为什么要 | 阶段 0 只观察、不推送。但原型不让只读账号完成 setup |
 | 上游要提供的 | `resolveDeployment` 在只读时成功，或一条跳过 push 检查的只读模式。更好是一枚只能读 `smile-xuc/DSH-haibo` 的凭据。GitHub App 不能代替：上游要读用户通知 |
-| rc.5 与原型现状 | 这条的门在原型，不在 rc.5 的浏览器认证里。本次读过原型 `6337fc8` 的 `src/deployment.ts`：`gh api repos/<remote> --jq '{name, push: .permissions.push}'`，`push !== true` 时抛 `SetupError('repositoryReadOnly')`。home-host 已写明没有「只读令牌」或「跳过 push 检查」的接口，以及 `gh auth login` 的最低 scope 是 `repo`、`read:org`、`gist`。rc.5 本身不提供这个 GitHub 模式 |
+| rc.5 与原型现状 | 这条的门在原型，不在 rc.5 的浏览器认证里。本次读过原型 `8c32a9d` 的 `src/deployment.ts`：`gh api repos/<remote> --jq '{name, push: .permissions.push}'`，`push !== true` 时抛 `SetupError('repositoryReadOnly')`。home-host 已写明没有「只读令牌」或「跳过 push 检查」的接口，以及 `gh auth login` 的最低 scope 是 `repo`、`read:org`、`gist`。rc.5 本身不提供这个 GitHub 模式 |
 | 临时做法 | 安全来自两处，而不是来自只读令牌：代理账号只被加进 `smile-xuc/DSH-haibo` 这一个仓库，且 `eval.mode` 保持 `observe`（不接单、不推送）。Write 角色只为了通过 setup。不要把这个账号加到其他仓库，不要改成 `auto`。见 [home-host](home-host.md#host-install) |
 | 怎么跟 | 看原型 `src/deployment.ts` 与 `SETUP.md`。DSH 发布说明里若出现 GitHub 只读连接器，一并记上。要开 issue 就开在原型仓库，说明 observe 试验需要 `repositoryReadOnly` 也能完成 setup。尚未开 issue |
 | 状态 | `workaround-in-place` |
@@ -163,7 +165,7 @@
 | 项 | 原型把 `@deepseek-ai/cordis` 与 `@deepseek-ai/schemastery` 钉在 `4.0.5-alpha.1` 与 `3.18.5-alpha.1`。haibo CI 用稳定版 `cordis@4.0.5`、`schemastery@3.18.5` |
 | 为什么要 | 隔离试验要把原型 link 进 `0.2.1-rc.5` 的 profile。alpha 精确版本和 CI 的 `~4.0.5` 对不上，面板可能报插件不兼容 |
 | 上游要提供的 | 原型改为接受 rc.5 已发布的那组 peer（cordis `~4.0.5`、schemastery `~3.18.5`），或 rc 线发布与原型相同的 alpha 并声明兼容。在那之前不要把 alpha 写进 haibo |
-| 现状 | 本次读过原型 `6337fc8` 的 `package.json`：`@deepseek-ai/cordis` 为 `4.0.5-alpha.1`，`@deepseek-ai/schemastery` 为 `3.18.5-alpha.1`。haibo 侧见 [CI tip 与 cordis](home-host.md#ci-tip) 与 `.github/workflows/ci.yml`：`@deepseek-ai/cordis@4.0.5`、`@deepseek-ai/schemastery@3.18.5`，DSH 包为 `0.2.1-rc.5`。稳定版满足不了原型这两条精确 pin。试验接受破损 |
+| 现状 | 本次读过原型 `8c32a9d` 的 `package.json`：`@deepseek-ai/cordis` 为 `4.0.5-alpha.1`，`@deepseek-ai/schemastery` 为 `3.18.5-alpha.1`。haibo 侧见 [CI tip 与 cordis](home-host.md#ci-tip) 与 `.github/workflows/ci.yml`：`@deepseek-ai/cordis@4.0.5`、`@deepseek-ai/schemastery@3.18.5`，DSH 包为 `0.2.1-rc.5`。稳定版满足不了原型这两条精确 pin。试验接受破损 |
 | 临时做法 | 破损只留在隔离 `superagent` profile。不把 alpha cordis 塞进 haibo 标记块或 CI。tip 保持 `0.2.1-rc.5`，不追 `cordis@4.0.6-alpha.1`，不改成 `0.2.2-alpha` |
 | 怎么跟 | `dsh-upstream-watch` 看 DSH tag 的 peer；另看原型 `package.json`。两边对齐之前保持本条。对齐之后先改本文状态，再另开一次变更决定要不要动 CI |
 | 状态 | `workaround-in-place` |
@@ -173,4 +175,4 @@
 
 | 日期 | 对照 | 记录 |
 |---|---|---|
-| 2026-11-03 | DSH tag `dsh-v0.2.1-rc.5`；原型 `6337fc823ce20251c8de8085948165c81aaa701e` | 初稿。写入 UB-1 至 UB-9。浏览器认证、CLI 反代旗标、subagent 默认值、原型 push 门与 cordis pin 本次读过源文件。桌面远程模式、presence、看门狗、duplicate-attach 测试正文、全双工是否等于文章设计，仍是待核对或未验证 |
+| 2026-11-03 | DSH tag `dsh-v0.2.1-rc.5`；原型 `8c32a9dc5d72c033816c6a8110b37f40cf94fba4` | 初稿。写入 UB-1 至 UB-9。浏览器认证、CLI 反代旗标、subagent 默认值、原型 push 门与 cordis pin 本次读过源文件。桌面远程模式、presence、看门狗、duplicate-attach 测试正文、全双工是否等于文章设计，仍是待核对或未验证 |
